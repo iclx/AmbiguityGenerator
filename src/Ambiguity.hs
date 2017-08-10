@@ -9,28 +9,6 @@ cauchyDraw :: Floating a => a -> a -> a -> a
 cauchyDraw offset scale y = scale * tan (pi * (y - 1/2)) + offset
 
 
--- | Want a monad for drawing cauchy numbers.
-{-
-  Want to be able to...
-  
-  x <- draw
-  y <- draw
-  z <- draw
-
-  Also draw :: Random a => m a
-
-  Current problem: Ambiguous random number generator deals in
-  doubles. There is no general way to convert a double into any other
-  data type, and in fact there are problmes if doubles are smaller
-  than another data type we might want to generate random numbers
-  for. Normally a stream of Int values is converted to the specific
-  value.
-
-  Can make this abide by the RandomGen interface by converting Double
-  values to Int values... But this might not work since very large
-  values are possible.
--}
-
 -- | State for an ambiguous number generator. Mostly this includes
 --   parameters for the Cauchy distribution that we draw from at each
 --   step (the offset, and scale). There are other parametrs for how
@@ -46,6 +24,7 @@ data AmbiGenState s =
                , genSource :: s       -- ^ Seed for uniform random number generation.
                }
   deriving (Show)
+
 
 -- | Initialize the ambiguity generator.
 --   This will also run the first couple of steps to get the seeds.
@@ -71,6 +50,7 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 source)
 
           offset' = seed1
           scale' = phi * (abs seed2) + psi
+
 
 generate :: RandomGen s => AmbiGenState s -> Integer -> [Double]
 generate _ 0 = []
