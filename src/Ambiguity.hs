@@ -2,6 +2,7 @@ module Ambiguity where
 
 import System.Random
 import Data.ReinterpretCast
+import Data.IntMap hiding (map, split)
 
 
 -- | Draw a value from the cauchy distribution.
@@ -79,3 +80,37 @@ instance RandomGen s => RandomGen (AmbiGenState s) where
   split (AmbiGenState offset scale phi psi seed1 seed2 source)
     = (AmbiGenState offset scale phi psi seed2 seed1 s1, AmbiGenState offset scale phi psi seed1 seed2 s2)
       where (s1, s2) = split source
+
+
+zeroMap :: IntMap Int
+zeroMap = fromList [(x, 0) | x <- [1..10]]
+
+
+countMap :: [Int] -> IntMap Int
+countMap ls = Prelude.foldr (adjust (+1)) zeroMap ls
+
+
+drawCount :: Integer -> (StdGen -> Integer -> [Integer]) -> IO (IntMap Int)
+drawCount num generator
+  = do source <- newStdGen
+       let draw = generator source num
+
+       return (countMap (map fromIntegral draw))
+
+
+countToHistogram :: IntMap Int -> [Int]
+countToHistogram = map snd . toAscList
+
+
+drawHistogram :: Integer -> (StdGen -> Integer -> [Integer]) -> IO [Int]
+drawHistogram num generator
+  = fmap countToHistogram (drawCount num generator)
+
+
+paperGen :: StdGen -> Integer -> [Integer]
+paperGen s n
+  = generateR (mkAmbiGen s 0.001 0.0001) n (1, 10)
+
+haskellGen :: StdGen -> Integer -> [Integer]
+haskellGen s n
+  = take (fromIntegral n) $ randomRs (1, 100) (mkAmbiGen s 0.001 0.0001)
