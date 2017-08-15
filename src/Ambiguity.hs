@@ -109,8 +109,8 @@ drawHistogram num generator
 
 paperGen :: StdGen -> Integer -> [Integer]
 paperGen s n
-  = generateR (mkAmbiGen s 0.001 0.0001) n (1, 10)
+  = generateR (mkAmbiGen s 0.0001 0.0001) n (1, 10)
 
 haskellGen :: StdGen -> Integer -> [Integer]
 haskellGen s n
-  = take (fromIntegral n) $ randomRs (1, 100) (mkAmbiGen s 0.001 0.0001)
+  = take (fromIntegral n) $ randomRs (1, 100) (mkAmbiGen s 0.0001 0.0001)
