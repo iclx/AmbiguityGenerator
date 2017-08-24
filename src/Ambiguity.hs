@@ -22,35 +22,60 @@ data AmbiGenState s =
                , genPsi :: Double     -- ^ Small scaling factor for adjusting the scale.
                , genSeed1 :: Double   -- ^ Last draw.
                , genSeed2 :: Double   -- ^ Second last draw.
+               , genSeed3 :: Double   -- ^ Third last draw.
+               , genSeed4 :: Double   -- ^ Fourth last draw.
+               , genDraws :: Integer  -- ^ Number of draws.
                , genSource :: s       -- ^ Seed for uniform random number generation.
                }
-  deriving (Show)
+
+
+instance Show (AmbiGenState s) where
+  show (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source''')
+    = "offset: " ++ show offset ++ ", scale: " ++ show scale ++ " seeds:" ++ show (seed1, seed2, seed3, seed4)
 
 
 -- | Initialize the ambiguity generator.
 --   This will also run the first couple of steps to get the seeds.
 mkAmbiGen :: RandomGen s => s -> Double -> Double -> AmbiGenState s
 mkAmbiGen source phi psi
-  = AmbiGenState offset scale phi psi seed1 seed2 source''
-    where seed2 = cauchyDraw 0 1 y
-          seed1 = cauchyDraw seed2 1 y'
+  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 4 source''''
+    where seed4 = cauchyDraw y 1 y'
+          seed3 = cauchyDraw seed4 1 y''
+          seed2 = cauchyDraw seed3 1 y'''
+          seed1 = cauchyDraw seed2 1 y'''
 
           offset = seed2
           scale = phi * (abs seed1) + psi
 
-          (y, source') = randomR (0, 1) source
+          (y, source') = randomR (-100, 100) source
           (y', source'') = randomR (0, 1) source'
+          (y'', source''') = randomR (0, 1) source'
+          (y''', source'''') = randomR (0, 1) source'
 
 
 -- | Generate an ambiguous Double, and the next state of the ambiguity generator.
 nextAmbi :: RandomGen s => AmbiGenState s -> (Double, AmbiGenState s)
-nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 source)
-  = (draw, AmbiGenState offset' scale' phi psi draw seed1 source')
+nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)
+  = (draw', nextGen)
     where draw = cauchyDraw scale offset y
           (y, source') = randomR (0, 1) source
 
-          offset' = seed1
-          scale' = phi * (abs seed2) + psi
+          threshold = 10**3
+
+          rescale = if seed1 > threshold
+                    then if (floor seed3) `mod` 2 == 0 then True else False
+                    else False
+
+          offset' = if rescale
+                    then 1 / (abs seed4 + 1)
+                    else seed1
+
+          scale' = if rescale
+                   then phi / (abs seed3 + psi) + psi
+                   else phi * abs seed2 + psi
+
+          draw' = if rescale then 1/draw else draw
+          nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
 
 
 generate :: RandomGen s => AmbiGenState s -> Integer -> [Double]
@@ -60,10 +85,13 @@ generate ambi n = r : generate ambi' (n-1)
 
 
 generateR :: RandomGen s => AmbiGenState s -> Integer -> (Integer, Integer) -> [Integer]
-generateR ambi n (lo, hi)
+generateR ambi n range@(lo, hi)
   | lo > hi = generateR ambi n (hi, lo)
-  | otherwise = map toRange (generate ambi n)
-    where toRange x = floor x `mod` (hi - lo + 1) + lo
+  | otherwise = map (toRange range) (generate ambi n)
+
+
+toRange :: (Integer, Integer) -> Double -> Integer
+toRange (lo, hi) x = floor x `mod` (hi - lo + 1) + lo
 
 
 -- | RandomGen instance for the ambiguity generator.
@@ -77,39 +105,44 @@ instance RandomGen s => RandomGen (AmbiGenState s) where
   next g = (fromIntegral $ doubleToWord y, g')
     where (y, g') = nextAmbi g
 
-  split (AmbiGenState offset scale phi psi seed1 seed2 source)
-    = (AmbiGenState offset scale phi psi seed2 seed1 s1, AmbiGenState offset scale phi psi seed1 seed2 s2)
+  split (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)
+    = (AmbiGenState offset scale phi psi seed2 seed1 seed4 seed3 numDraws s1, AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws s2)
       where (s1, s2) = split source
 
 
-zeroMap :: IntMap Int
-zeroMap = fromList [(x, 0) | x <- [1..10]]
+zeroMap :: Integer -> IntMap Int
+zeroMap range = fromList [(x, 0) | x <- [1 .. fromIntegral range]]
 
 
-countMap :: [Int] -> IntMap Int
-countMap ls = Prelude.foldr (adjust (+1)) zeroMap ls
+countMap :: Integer -> [Int] -> IntMap Int
+countMap range ls = Prelude.foldr (adjust (+1)) (zeroMap range) ls
 
 
-drawCount :: Integer -> (StdGen -> Integer -> [Integer]) -> IO (IntMap Int)
-drawCount num generator
+drawCount :: Integer -> Integer -> (StdGen -> Integer -> Integer -> [Integer]) -> IO (IntMap Int)
+drawCount range num generator
   = do source <- newStdGen
-       let draw = generator source num
+       let draw = generator source num range
 
-       return (countMap (map fromIntegral draw))
+       return (countMap range (map fromIntegral draw))
 
 
 countToHistogram :: IntMap Int -> [Int]
 countToHistogram = map snd . toAscList
 
 
-drawHistogram :: Integer -> (StdGen -> Integer -> [Integer]) -> IO [Int]
-drawHistogram num generator
-  = fmap countToHistogram (drawCount num generator)
+drawHistogram :: Integer -> Integer -> (StdGen -> Integer -> Integer -> [Integer]) -> IO [Int]
+drawHistogram range num generator
+  = fmap countToHistogram (drawCount range num generator)
 
 
-paperGen :: StdGen -> Integer -> [Integer]
-paperGen s n
-  = generateR (mkAmbiGen s 0.0001 0.0001) n (1, 10)
+proportion :: Integer -> [Int] -> Float
+proportion y (x : xs) = fromIntegral x / fromIntegral y
+
+
+paperGen :: StdGen -> Integer -> Integer ->  [Integer]
+paperGen s n range
+  = generateR (mkAmbiGen s (1 / fromIntegral n) 0.0001) n (1, fromIntegral range)
+
 
 haskellGen :: StdGen -> Integer -> [Integer]
 haskellGen s n

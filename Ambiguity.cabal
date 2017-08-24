@@ -20,17 +20,21 @@ library
                      , random >= 1.1 && < 1.2
                      , reinterpret-cast >= 0.1 && < 0.2
                      , containers >= 0.5.10 && < 0.6
-                     , gnuplot >= 0.5.4.2 && < 0.6
   default-language:    Haskell2010
 
 executable histogram
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O3
+  setup-depends:       alex >=3.0.1
+                     , gtk2hs-buildtools >= 0.13 && < 0.14
   build-depends:       base
                      , Ambiguity
                      , random >= 1.1 && < 1.2
-                     , gnuplot >= 0.5.4.2 && < 0.6
+                     , gnuplot >= 0.5.4 && < 0.6
+                     , Chart >= 1.8.2 && < 1.9
+                     , Chart-cairo >= 1.8.2 && < 1.9
+                     , Chart-gtk >= 1.8.2 && < 1.9
 
 test-suite Ambiguity-test
   type:                exitcode-stdio-1.0
