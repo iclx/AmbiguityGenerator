@@ -32,7 +32,7 @@ plotAmbiguity runs samples range
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do source <- newStdGen
-                  let values = generate (mkAmbiGen source (0.0001) (1 / fromIntegral samples)) samples
+                  let values = generate (mkAmbiGen source (1 / fromIntegral samples) (0.0001)) samples
                   return $ combinedPlot range values
 
 

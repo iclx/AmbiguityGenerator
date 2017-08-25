@@ -40,20 +40,19 @@ instance Show (AmbiGenState s) where
 --   This will also run the first couple of steps to get the seeds.
 mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
 mkAmbiGen source phi psi
-  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 4 source4
-    where seed4 = cauchyDraw y 1 y1
-          seed3 = cauchyDraw seed4 1 y2
-          seed2 = cauchyDraw seed3 (phi * seed4 + psi) y3
-          seed1 = cauchyDraw seed2 (phi * seed3 + psi) y4
+  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source4
+    where seed4 = cauchyDraw 0 1 y
+          seed3 = cauchyDraw seed4 1 y1
+          seed2 = cauchyDraw seed3 (seed4 / 3 + psi) y2
+          seed1 = cauchyDraw seed2 (seed3 / 4 + psi) y3
 
           offset = seed2
-          scale = phi * (abs seed1) + psi
+          scale = (abs seed1) / 5 + psi
 
-          (y, source1) = randomR (-100, 100) source
+          (y, source1) = randomR (0, 1) source
           (y1, source2) = randomR (0, 1) source1
           (y2, source3) = randomR (0, 1) source2
           (y3, source4) = randomR (0, 1) source3
-          (y4, source5) = randomR (0, 1) source4
 
 
 -- | Generate an ambiguous AmbiGenReal, and the next state of the ambiguity generator.
@@ -63,19 +62,19 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
     where draw = cauchyDraw scale offset y
           (y, source') = randomR (0, 1) source
 
-          threshold = 10**15
+          threshold = min (2 ** fromIntegral numDraws) (10 ** 15)
 
-          rescale = if seed1 > threshold
+          rescale = if abs seed1 > threshold
                     then if (floor seed3) `mod` 2 == 0 then True else False
                     else False
 
           offset' = if rescale
-                    then 1 / (abs seed4 + 1)
+                    then 1 / (abs seed3 + 1)
                     else seed1
 
           scale' = if rescale
-                   then phi / (abs seed3 + psi) + psi
-                   else phi * abs seed2 + psi
+                   then 1
+                   else abs seed2 / (fromIntegral numDraws) + psi
 
           draw' = if rescale then 1/draw else draw
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
