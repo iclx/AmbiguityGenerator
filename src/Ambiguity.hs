@@ -5,6 +5,8 @@ import Data.ReinterpretCast
 import Data.IntMap hiding (map, split)
 
 
+type AmbiGenReal = Double
+
 -- | Draw a value from the cauchy distribution.
 cauchyDraw :: Floating a => a -> a -> a -> a
 cauchyDraw offset scale y = scale * tan (pi * (y - 1/2)) + offset
@@ -16,14 +18,14 @@ cauchyDraw offset scale y = scale * tan (pi * (y - 1/2)) + offset
 --   the scale changes over time, and some state for previous draws,
 --   which are used as seeds for the ambiguity generator.
 data AmbiGenState s =
-  AmbiGenState { genOffset :: Double  -- ^ Offset for the cauchy distribution ("location").
-               , genScale :: Double   -- ^ Scale for the cauchy distribution.
-               , genPhi :: Double     -- ^ Small scaling factor for adjusting the scale.
-               , genPsi :: Double     -- ^ Small scaling factor for adjusting the scale.
-               , genSeed1 :: Double   -- ^ Last draw.
-               , genSeed2 :: Double   -- ^ Second last draw.
-               , genSeed3 :: Double   -- ^ Third last draw.
-               , genSeed4 :: Double   -- ^ Fourth last draw.
+  AmbiGenState { genOffset :: AmbiGenReal  -- ^ Offset for the cauchy distribution ("location").
+               , genScale :: AmbiGenReal   -- ^ Scale for the cauchy distribution.
+               , genPhi :: AmbiGenReal     -- ^ Small scaling factor for adjusting the scale.
+               , genPsi :: AmbiGenReal     -- ^ Small scaling factor for adjusting the scale.
+               , genSeed1 :: AmbiGenReal   -- ^ Last draw.
+               , genSeed2 :: AmbiGenReal   -- ^ Second last draw.
+               , genSeed3 :: AmbiGenReal   -- ^ Third last draw.
+               , genSeed4 :: AmbiGenReal   -- ^ Fourth last draw.
                , genDraws :: Integer  -- ^ Number of draws.
                , genSource :: s       -- ^ Seed for uniform random number generation.
                }
@@ -36,31 +38,32 @@ instance Show (AmbiGenState s) where
 
 -- | Initialize the ambiguity generator.
 --   This will also run the first couple of steps to get the seeds.
-mkAmbiGen :: RandomGen s => s -> Double -> Double -> AmbiGenState s
+mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
 mkAmbiGen source phi psi
-  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 4 source''''
-    where seed4 = cauchyDraw y 1 y'
-          seed3 = cauchyDraw seed4 1 y''
-          seed2 = cauchyDraw seed3 1 y'''
-          seed1 = cauchyDraw seed2 1 y'''
+  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 4 source4
+    where seed4 = cauchyDraw y 1 y1
+          seed3 = cauchyDraw seed4 1 y2
+          seed2 = cauchyDraw seed3 (phi * seed4 + psi) y3
+          seed1 = cauchyDraw seed2 (phi * seed3 + psi) y4
 
           offset = seed2
           scale = phi * (abs seed1) + psi
 
-          (y, source') = randomR (-100, 100) source
-          (y', source'') = randomR (0, 1) source'
-          (y'', source''') = randomR (0, 1) source'
-          (y''', source'''') = randomR (0, 1) source'
+          (y, source1) = randomR (-100, 100) source
+          (y1, source2) = randomR (0, 1) source1
+          (y2, source3) = randomR (0, 1) source2
+          (y3, source4) = randomR (0, 1) source3
+          (y4, source5) = randomR (0, 1) source4
 
 
--- | Generate an ambiguous Double, and the next state of the ambiguity generator.
-nextAmbi :: RandomGen s => AmbiGenState s -> (Double, AmbiGenState s)
+-- | Generate an ambiguous AmbiGenReal, and the next state of the ambiguity generator.
+nextAmbi :: RandomGen s => AmbiGenState s -> (AmbiGenReal, AmbiGenState s)
 nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)
   = (draw', nextGen)
     where draw = cauchyDraw scale offset y
           (y, source') = randomR (0, 1) source
 
-          threshold = 10**3
+          threshold = 10**15
 
           rescale = if seed1 > threshold
                     then if (floor seed3) `mod` 2 == 0 then True else False
@@ -78,7 +81,7 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
 
 
-generate :: RandomGen s => AmbiGenState s -> Integer -> [Double]
+generate :: RandomGen s => AmbiGenState s -> Integer -> [AmbiGenReal]
 generate _ 0 = []
 generate ambi n = r : generate ambi' (n-1)
   where (r, ambi') = nextAmbi ambi
@@ -90,7 +93,7 @@ generateR ambi n range@(lo, hi)
   | otherwise = map (toRange range) (generate ambi n)
 
 
-toRange :: (Integer, Integer) -> Double -> Integer
+toRange :: (Integer, Integer) -> AmbiGenReal -> Integer
 toRange (lo, hi) x = floor x `mod` (hi - lo + 1) + lo
 
 
@@ -102,7 +105,7 @@ toRange (lo, hi) x = floor x `mod` (hi - lo + 1) + lo
 --      probably still be in the same "phase" when split, yielding
 --      similar results.
 instance RandomGen s => RandomGen (AmbiGenState s) where
-  next g = (fromIntegral $ doubleToWord y, g')
+  next g = (fromIntegral $ floor y, g')
     where (y, g') = nextAmbi g
 
   split (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)

@@ -36,14 +36,14 @@ plotAmbiguity runs samples range
                   return $ combinedPlot range values
 
 
-combinedPlot :: Integer -> [Double] -> Grid (Renderable (LayoutPick Double Double Double))
+combinedPlot :: Integer -> [AmbiGenReal] -> Grid (Renderable (LayoutPick Double Double Double))
 combinedPlot range values
   = line `beside` hist
     where
       hist = layoutToGrid $ plotHistogram range samples
         where samples = map (fromIntegral . toRange (1, range)) values
 
-      line = layoutToGrid $ plotRealizations values
+      line = layoutToGrid $ plotRealizations (map realToFrac values)
 
 
 plotHistogram :: Integer -> [Double] -> Layout Double Double
