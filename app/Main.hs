@@ -4,7 +4,6 @@ import Ambiguity
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Easy hiding (beside)
 import Graphics.Rendering.Chart.Backend.Cairo
-import Graphics.Rendering.Chart.Gtk
 import Graphics.Rendering.Chart.Grid
 import System.Random
 import System.Environment
