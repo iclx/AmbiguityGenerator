@@ -7,57 +7,61 @@ import Graphics.Rendering.Chart.Backend.Cairo
 import Graphics.Rendering.Chart.Gtk
 import Graphics.Rendering.Chart.Grid
 import System.Random
+import System.Environment
+import Control.Monad
 
 
 main :: IO ()
 main
- = do source <- newStdGen
-      let samples = 100
-      let range = 10
-      let values = generate (mkAmbiGen source (0.0001) (0.0001)) samples
+ = do [runsStr, samplesStr, rangeStr, filepath] <- getArgs
 
-      toFile def ("realizations.png") (plot (line "realizations" [zip ([1..] :: [Integer]) values]))
+      let runs = read runsStr
+      let samples = read samplesStr
+      let range = read rangeStr
+
+      let imageSize = (800, 300 * runs)
+
+      ambiguityPlots <- plotAmbiguity runs samples range
+      renderableToFile (fo_size .~ imageSize $ def) filepath ambiguityPlots
+
+      return ()
 
 
-combinedPlot :: Integer -> [Double] -> Renderable ()
+plotAmbiguity :: Int -> Integer -> Integer -> IO (Renderable (LayoutPick Double Double Double))
+plotAmbiguity runs samples range
+  = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
+  where
+    makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
+    makePlot = do source <- newStdGen
+                  let values = generate (mkAmbiGen source (0.0001) (1 / fromIntegral samples)) samples
+                  return $ combinedPlot range values
+
+
+combinedPlot :: Integer -> [Double] -> Grid (Renderable (LayoutPick Double Double Double))
 combinedPlot range values
-  = toRenderable grid
+  = line `beside` hist
     where
-      grid = tval hist `beside` tval hist
-
-      hist = plotHistogram range samples
+      hist = layoutToGrid $ plotHistogram range samples
         where samples = map (fromIntegral . toRange (1, range)) values
 
-      line = plotRealizations values
+      line = layoutToGrid $ plotRealizations values
 
-plotHistogram :: Integer -> [Double] -> Layout Double Double -- Plot Double Double
+
+plotHistogram :: Integer -> [Double] -> Layout Double Double
 plotHistogram range samples
-  = layout
+  = layout_plots .~ [hist] $ def
   where
-    layout = layout_plots .~ [hist] $ def
-
     hist = histToPlot $
            plot_hist_bins .~ fromIntegral range $
            plot_hist_values .~ samples $
            defaultNormedPlotHist
 
-plotRealizations :: [Double] -> Plot Double Double
+
+plotRealizations :: [Double] -> Layout Double Double
 plotRealizations realizations
-  = toPlot $
-    plot_lines_style .~ solidLine 0.25 (opaque green) $
-    plot_lines_values .~ [zip [1..] realizations] $
-    def
-    
-
-{-
-toRenderable layout
-    where layout
-            = layout_plots .~ [ histToPlot hist ] $
-              def :: Layout PlotIndex Double
-
-          hist
-            = plot_hist_values .= hist $
-              plot_hist_bins .= range $
-              defaultNormedPlotHist
-            
--}
+  = layout_plots .~ [line] $ def
+  where
+    line = toPlot $
+           plot_lines_style .~ solidLine 0.25 (opaque green) $
+           plot_lines_values .~ [zip [1..] realizations] $
+           def
