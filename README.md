@@ -2,7 +2,7 @@
 
 This is a Haskell library to expose the "ambiguous random number generator" described in the paper [Generating Ambiguity in the Labratory](https://www.chapman.edu/ESI/wp/AmbiguityWP0410.pdf).
 
-Please cite the paper that this is based upon. We hav provided the BibTeX info here:
+Please cite the paper that this is based upon. We have provided the BibTeX info here:
 
 ```
 @article{AmbiguityInTheLabMS2011,
