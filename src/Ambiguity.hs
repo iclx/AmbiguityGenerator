@@ -19,15 +19,15 @@ cauchyDraw offset scale y = scale * tan (pi * (y - 1/2)) + offset
 --   which are used as seeds for the ambiguity generator.
 data AmbiGenState s =
   AmbiGenState { genOffset :: AmbiGenReal  -- ^ Offset for the cauchy distribution ("location").
-               , genScale :: AmbiGenReal   -- ^ Scale for the cauchy distribution.
-               , genPhi :: AmbiGenReal     -- ^ Small scaling factor for adjusting the scale.
-               , genPsi :: AmbiGenReal     -- ^ Small scaling factor for adjusting the scale.
-               , genSeed1 :: AmbiGenReal   -- ^ Last draw.
-               , genSeed2 :: AmbiGenReal   -- ^ Second last draw.
-               , genSeed3 :: AmbiGenReal   -- ^ Third last draw.
-               , genSeed4 :: AmbiGenReal   -- ^ Fourth last draw.
-               , genDraws :: Integer  -- ^ Number of draws.
-               , genSource :: s       -- ^ Seed for uniform random number generation.
+               , genScale  :: AmbiGenReal  -- ^ Scale for the cauchy distribution.
+               , genPhi    :: AmbiGenReal  -- ^ Small scaling factor for adjusting the scale.
+               , genPsi    :: AmbiGenReal  -- ^ Small scaling factor for adjusting the scale.
+               , genSeed1  :: AmbiGenReal  -- ^ Last draw.
+               , genSeed2  :: AmbiGenReal  -- ^ Second last draw.
+               , genSeed3  :: AmbiGenReal  -- ^ Third last draw.
+               , genSeed4  :: AmbiGenReal  -- ^ Fourth last draw.
+               , genDraws  :: Integer      -- ^ Number of draws.
+               , genSource :: s            -- ^ Seed for uniform random number generation.
                }
 
 
@@ -40,19 +40,20 @@ instance Show (AmbiGenState s) where
 --   This will also run the first couple of steps to get the seeds.
 mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
 mkAmbiGen source phi psi
-  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source4
-    where seed4 = cauchyDraw 0 1 y
-          seed3 = cauchyDraw seed4 1 y1
-          seed2 = cauchyDraw seed3 (seed4 / 3 + psi) y2
-          seed1 = cauchyDraw seed2 (seed3 / 4 + psi) y3
+  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source5
+    where seed4 = cauchyDraw y 1 y1
+          seed3 = cauchyDraw seed4 1 y2
+          seed2 = cauchyDraw seed3 (seed4 / 3 + psi) y3
+          seed1 = cauchyDraw seed2 (seed3 / 4 + psi) y4
 
           offset = seed2
           scale = (abs seed1) / 5 + psi
 
-          (y, source1) = randomR (0, 1) source
+          (y,  source1) = randomR (-100, 100) source
           (y1, source2) = randomR (0, 1) source1
           (y2, source3) = randomR (0, 1) source2
           (y3, source4) = randomR (0, 1) source3
+          (y4, source5) = randomR (0, 1) source4
 
 
 -- | Generate an ambiguous AmbiGenReal, and the next state of the ambiguity generator.
@@ -62,14 +63,14 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
     where draw = cauchyDraw scale offset y
           (y, source') = randomR (0, 1) source
 
-          threshold = min (2 ** fromIntegral numDraws) (10 ** 15)
+          threshold = fromIntegral numDraws ** 4
 
           rescale = if abs seed1 > threshold
                     then if (floor seed3) `mod` 2 == 0 then True else False
                     else False
 
           offset' = if rescale
-                    then 1 / (abs seed3 + 1)
+                    then sin (1 / (abs seed3 + 1))
                     else seed1
 
           scale' = if rescale

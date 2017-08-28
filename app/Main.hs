@@ -23,6 +23,19 @@ main
       ambiguityPlots <- plotAmbiguity runs samples range
       renderableToFile (fo_size .~ imageSize $ def) filepath ambiguityPlots
 
+      gen <- newStdGen
+      gen2 <- newStdGen
+
+      let offsets = randomRs (-100, 100) gen
+      
+      let cauchyDraws = take 10000 [cauchyDraw off 1 draw | (off, draw) <- zip offsets (randomRs (0.0, 1.0) gen)]
+
+      print cauchyDraws
+
+      renderableToFile def "cauchy.png" . toRenderable $ plotHistogram 10 cauchyDraws
+
+      renderableToFile def "finite-cauchy.png" . toRenderable . plotHistogram 10 $ map (fromIntegral . toRange (1, 10)) cauchyDraws
+
       return ()
 
 
@@ -51,7 +64,7 @@ plotHistogram range samples
   = layout_plots .~ [hist] $ def
   where
     hist = histToPlot $
-           plot_hist_bins .~ fromIntegral range $
+--           plot_hist_bins .~ fromIntegral range $ 
            plot_hist_values .~ samples $
            defaultNormedPlotHist
 
