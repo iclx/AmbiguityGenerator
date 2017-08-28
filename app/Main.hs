@@ -18,23 +18,10 @@ main
       let samples = read samplesStr
       let range = read rangeStr
 
-      let imageSize = (800, 300 * runs)
+      let imageSize = (800 * 2, 300 * runs)
 
       ambiguityPlots <- plotAmbiguity runs samples range
       renderableToFile (fo_size .~ imageSize $ def) filepath ambiguityPlots
-
-      gen <- newStdGen
-      gen2 <- newStdGen
-
-      let offsets = randomRs (-100, 100) gen
-      
-      let cauchyDraws = take 10000 [cauchyDraw off 1 draw | (off, draw) <- zip offsets (randomRs (0.0, 1.0) gen)]
-
-      print cauchyDraws
-
-      renderableToFile def "cauchy.png" . toRenderable $ plotHistogram 10 cauchyDraws
-
-      renderableToFile def "finite-cauchy.png" . toRenderable . plotHistogram 10 $ map (fromIntegral . toRange (1, 10)) cauchyDraws
 
       return ()
 
@@ -51,10 +38,15 @@ plotAmbiguity runs samples range
 
 combinedPlot :: Integer -> [AmbiGenReal] -> Grid (Renderable (LayoutPick Double Double Double))
 combinedPlot range values
-  = line `beside` hist
+  = histRealizations `beside` line `beside` histBinary `beside` hist
     where
       hist = layoutToGrid $ plotHistogram range samples
         where samples = map (fromIntegral . toRange (1, range)) values
+
+      histBinary = layoutToGrid $ plotHistogram range samples
+        where samples = map (fromIntegral . toRange (0, 1)) values
+
+      histRealizations = layoutToGrid $ plotHistogram range values
 
       line = layoutToGrid $ plotRealizations (map realToFrac values)
 
@@ -64,7 +56,6 @@ plotHistogram range samples
   = layout_plots .~ [hist] $ def
   where
     hist = histToPlot $
---           plot_hist_bins .~ fromIntegral range $ 
            plot_hist_values .~ samples $
            defaultNormedPlotHist
 

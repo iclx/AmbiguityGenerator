@@ -41,15 +41,15 @@ instance Show (AmbiGenState s) where
 mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
 mkAmbiGen source phi psi
   = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source5
-    where seed4 = cauchyDraw y 1 y1
+    where seed4 = cauchyDraw 0 1 y1
           seed3 = cauchyDraw seed4 1 y2
-          seed2 = cauchyDraw seed3 (seed4 / 3 + psi) y3
-          seed1 = cauchyDraw seed2 (seed3 / 4 + psi) y4
+          seed2 = cauchyDraw seed3 1 y3
+          seed1 = cauchyDraw seed2 1 y4
 
-          offset = seed2
-          scale = (abs seed1) / 5 + psi
+          offset = seed1
+          scale = 1
 
-          (y,  source1) = randomR (-100, 100) source
+          (y,  source1) = randomR (-100 :: Double, 100) source
           (y1, source2) = randomR (0, 1) source1
           (y2, source3) = randomR (0, 1) source2
           (y3, source4) = randomR (0, 1) source3
@@ -60,7 +60,7 @@ mkAmbiGen source phi psi
 nextAmbi :: RandomGen s => AmbiGenState s -> (AmbiGenReal, AmbiGenState s)
 nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)
   = (draw', nextGen)
-    where draw = cauchyDraw scale offset y
+    where draw = cauchyDraw offset scale y
           (y, source') = randomR (0, 1) source
 
           threshold = fromIntegral numDraws ** 4
@@ -71,13 +71,13 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
 
           offset' = if rescale
                     then sin (1 / (abs seed3 + 1))
-                    else seed1
+                    else draw'
 
           scale' = if rescale
                    then 1
                    else abs seed2 / (fromIntegral numDraws) + psi
 
-          draw' = if rescale then 1/draw else draw
+          draw' = if rescale then sin (1 / (abs draw + 1)) else draw
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
 
 
