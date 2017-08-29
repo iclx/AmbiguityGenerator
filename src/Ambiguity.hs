@@ -2,7 +2,8 @@ module Ambiguity where
 
 import System.Random
 import Data.ReinterpretCast
-import Data.IntMap hiding (map, split)
+import Data.IntMap hiding (map, split, foldl)
+import Data.Bits
 
 
 type AmbiGenReal = Double
@@ -81,20 +82,28 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
 
 
-generate :: RandomGen s => AmbiGenState s -> Integer -> [AmbiGenReal]
-generate _ 0 = []
-generate ambi n = r : generate ambi' (n-1)
+generate :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
+generate ambi n = take n . map fst $ generateState ambi
+
+
+generateR :: RandomGen s => AmbiGenState s -> Int -> (Integer, Integer) -> [Integer]
+generateR ambi n range = take n . map fst $ generateStateR ambi range
+
+
+generateStateR :: RandomGen s => AmbiGenState s -> (Integer, Integer) -> [(Integer, AmbiGenState s)]
+generateStateR ambi range = map tupleToRange $ generateState ambi
+  where tupleToRange (v, ambi) = (toRange range v, ambi)
+
+
+generateState :: RandomGen s => AmbiGenState s -> [(AmbiGenReal, AmbiGenState s)]
+generateState ambi = (r, ambi') : generateState ambi'
   where (r, ambi') = nextAmbi ambi
 
 
-generateR :: RandomGen s => AmbiGenState s -> Integer -> (Integer, Integer) -> [Integer]
-generateR ambi n range@(lo, hi)
-  | lo > hi = generateR ambi n (hi, lo)
-  | otherwise = map (toRange range) (generate ambi n)
-
-
 toRange :: (Integer, Integer) -> AmbiGenReal -> Integer
-toRange (lo, hi) x = floor x `mod` (hi - lo + 1) + lo
+toRange (lo, hi) x
+  | lo > hi = toRange (hi, lo) x
+  | otherwise = floor x `mod` (hi - lo + 1) + lo
 
 
 -- | RandomGen instance for the ambiguity generator.
@@ -105,8 +114,11 @@ toRange (lo, hi) x = floor x `mod` (hi - lo + 1) + lo
 --      probably still be in the same "phase" when split, yielding
 --      similar results.
 instance RandomGen s => RandomGen (AmbiGenState s) where
-  next g = (fromIntegral $ floor y, g')
-    where (y, g') = nextAmbi g
+  next g = (fromIntegral nextInt, g')
+    where
+      nextInt = foldl (\x y -> 2 *x + y) 0 bits
+      (bits, states) = unzip . take 32 $ generateStateR g (0, 1)
+      g' = last states
 
   split (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)
     = (AmbiGenState offset scale phi psi seed2 seed1 seed4 seed3 numDraws s1, AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws s2)
@@ -142,11 +154,6 @@ proportion :: Integer -> [Int] -> Float
 proportion y (x : xs) = fromIntegral x / fromIntegral y
 
 
-paperGen :: StdGen -> Integer -> Integer ->  [Integer]
+paperGen :: StdGen -> Int -> Integer ->  [Integer]
 paperGen s n range
   = generateR (mkAmbiGen s (1 / fromIntegral n) 0.0001) n (1, fromIntegral range)
-
-
-haskellGen :: StdGen -> Integer -> [Integer]
-haskellGen s n
-  = take (fromIntegral n) $ randomRs (1, 100) (mkAmbiGen s 0.0001 0.0001)
