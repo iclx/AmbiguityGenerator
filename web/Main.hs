@@ -1,13 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Ambiguity
-import Graphics.Rendering.Chart
-import Graphics.Rendering.Chart.Easy hiding (beside)
-import Graphics.Rendering.Chart.Backend.Cairo
-import Graphics.Rendering.Chart.Grid
 import System.Random
 import System.Environment
 import Control.Monad
@@ -16,17 +14,46 @@ import Data.List
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Servant
+import Data.Aeson
+import GHC.Generics
+import Web.Internal.FormUrlEncoded
+import Data.Text
+
+
+-- | Samples, lower bound, upper bound.
+data FiniteData = FiniteData Int Integer Integer
+  deriving (Generic, Show, Eq)
+
+
+instance ToJSON FiniteData
+instance FromJSON FiniteData
+
+instance FromForm FiniteData where
+  fromForm f = FiniteData
+    <$> parseUnique "samples" f
+    <*> parseUnique "lower" f
+    <*> parseUnique "upper" f
+
+
+data RealizationData = RealizationData Int
+  deriving (Generic, Show, Eq)
+
+
+instance ToJSON RealizationData
+instance FromJSON RealizationData
+
+instance FromForm RealizationData where
+  fromForm f = RealizationData
+    <$> parseUnique "samples" f
 
 
 type FiniteAPI = "finite"
-                 :> Capture "samples" Int
-                 :> Capture "low" Integer
-                 :> Capture "high" Integer
+                 :> ReqBody '[FormUrlEncoded, JSON] FiniteData
                  :> Post '[JSON] [Integer]
 
 
 type RealizationAPI = "realizations"
-                      :> Capture "samples" Int
+                      :> ReqBody '[FormUrlEncoded, JSON] RealizationData
                       :> Post '[JSON] [Double]
 
 
@@ -39,8 +66,8 @@ api = Proxy
 
 ambiguityServer :: Server AmbiguityAPI
 ambiguityServer = finite :<|> realizations
-  where finite :: Int -> Integer -> Integer -> Handler [Integer]
-        finite samples low high
+  where finite :: FiniteData -> Handler [Integer]
+        finite (FiniteData samples low high)
           = do gen <- liftIO newStdGen
 
                let ambi = mkAmbiGen gen 0 0
@@ -48,8 +75,8 @@ ambiguityServer = finite :<|> realizations
 
                return values
 
-        realizations :: Int -> Handler [Double]
-        realizations samples
+        realizations :: RealizationData -> Handler [Double]
+        realizations (RealizationData samples)
           = do gen <- liftIO newStdGen
 
                let ambi = mkAmbiGen gen 0 0
