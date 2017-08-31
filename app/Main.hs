@@ -3,7 +3,7 @@ module Main where
 import Ambiguity
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Easy hiding (beside)
-import Graphics.Rendering.Chart.Backend.Cairo
+import Graphics.Rendering.Chart.Backend.Diagrams
 import Graphics.Rendering.Chart.Grid
 import System.Random
 import System.Environment
@@ -19,10 +19,10 @@ main
       let samples = read samplesStr
       let range = read rangeStr
 
-      let imageSize = (800 * 2, 300 * runs)
+      let imageSize = (fromIntegral (800 * 2), fromIntegral (300 * runs))
 
       ambiguityPlots <- plotAmbiguity runs samples range
-      renderableToFile (fo_size .~ imageSize $ def) filepath ambiguityPlots
+      renderableToFile (fo_size .~ imageSize $ fo_format .~ SVG $ def) filepath ambiguityPlots
 
       return ()
 

@@ -30,7 +30,7 @@ executable histogram
                      , Ambiguity
                      , random >= 1.1 && < 1.2
                      , Chart >= 1.8.2 && < 1.9
-                     , Chart-cairo >= 1.8.2 && < 1.9
+                     , Chart-diagrams >= 1.8.2 && < 1.9
 
 executable ambiguity-server
   hs-source-dirs:      web
