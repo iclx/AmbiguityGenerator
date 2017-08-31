@@ -14,7 +14,7 @@ main
       let runs = read runsStr
       let samples = read samplesStr
 
-      makeDraws filepath runs samples
+      makeDraws filepath samples runs
 
 
 drawBits :: String -> Int -> Int -> IO ()
