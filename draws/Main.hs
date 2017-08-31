@@ -54,4 +54,4 @@ makeDraws :: String -> Int-> Int -> IO ()
 makeDraws fileBase samples runs
   = do mapM_ (drawBits fileBase samples) [1..runs]
        mapM_ (drawDigits fileBase samples) [1..runs]
-       mapM_ (drawBits fileBase samples) [1..runs]
+       mapM_ (drawAmbiguous fileBase samples) [1..runs]
