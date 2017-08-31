@@ -82,15 +82,50 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
 
 
+generateShuffle :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
+generateShuffle gen n = randomShuffle n gen' . takeForShuffle $ realizations
+  where
+    gen' = last states
+    (realizations, states) = unzip $ generateState gen
+
+    takeForShuffle :: (Num a, Ord a) => [a] -> [a]
+    takeForShuffle = takeForShuffleHelper False n []
+
+    takeForShuffleHelper :: (Num a, Ord a) => Bool -> Int -> [a] -> [a] -> [a]
+    takeForShuffleHelper _ k rest []= rest
+    takeForShuffleHelper True 0 rest (x : xs) = x : rest
+    takeForShuffleHelper True k rest (x : xs) = takeForShuffleHelper True (k-1) (x : rest) xs
+    takeForShuffleHelper False k rest (x : xs)
+      = if abs x > 1000
+        then takeForShuffleHelper True (k-1) (x : rest) xs
+        else takeForShuffleHelper False (k-1) (x : rest) xs
+
+
+generateShuffleR :: (Integral a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
+generateShuffleR gen n range = map (toRange range) (generateShuffle gen n)
+
+
+-- | Take a possibly infinite list and shuffle it ambiguously using a stopping condition.
+shuffle :: RandomGen s => (a -> Bool) -> Int -> AmbiGenState s -> [a] -> [a]
+shuffle test n gen l = randomShuffle n gen $ takeWhile (not . test) l
+
+
+randomShuffle :: RandomGen s => Int -> AmbiGenState s -> [a] -> [a]
+randomShuffle n gen l = map (l !!) selectSequence
+  where
+    selectSequence :: [Int]
+    selectSequence = generateR gen n (0, n-1)
+
+
 generate :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
 generate ambi n = take n . map fst $ generateState ambi
 
 
-generateR :: RandomGen s => AmbiGenState s -> Int -> (Integer, Integer) -> [Integer]
+generateR :: (Integral a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
 generateR ambi n range = take n . map fst $ generateStateR ambi range
 
 
-generateStateR :: RandomGen s => AmbiGenState s -> (Integer, Integer) -> [(Integer, AmbiGenState s)]
+generateStateR :: (Integral a, RandomGen s) => AmbiGenState s -> (a, a) -> [(a, AmbiGenState s)]
 generateStateR ambi range = map tupleToRange $ generateState ambi
   where tupleToRange (v, ambi) = (toRange range v, ambi)
 
@@ -100,7 +135,7 @@ generateState ambi = (r, ambi') : generateState ambi'
   where (r, ambi') = nextAmbi ambi
 
 
-toRange :: (Integer, Integer) -> AmbiGenReal -> Integer
+toRange :: Integral a => (a, a) -> AmbiGenReal -> a
 toRange (lo, hi) x
   | lo > hi = toRange (hi, lo) x
   | otherwise = floor x `mod` (hi - lo + 1) + lo
