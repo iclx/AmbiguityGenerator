@@ -41,20 +41,24 @@ instance Show (AmbiGenState s) where
 --   This will also run the first couple of steps to get the seeds.
 mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
 mkAmbiGen source phi psi
-  = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source5
-    where seed4 = cauchyDraw 0 1 y1
-          seed3 = cauchyDraw seed4 1 y2
-          seed2 = cauchyDraw seed3 1 y3
-          seed1 = cauchyDraw seed2 1 y4
+  = last states
+    where
+      (_, states) = unzip . take 1000 $ generateState ambiInit
+      ambiInit = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source5
 
-          offset = seed1
-          scale = 1
+      seed4 = cauchyDraw y scale y1
+      seed3 = cauchyDraw seed4 scale y2
+      seed2 = cauchyDraw seed3 scale y3
+      seed1 = cauchyDraw seed2 scale y4
 
-          (y,  source1) = randomR (-100 :: Double, 100) source
-          (y1, source2) = randomR (0, 1) source1
-          (y2, source3) = randomR (0, 1) source2
-          (y3, source4) = randomR (0, 1) source3
-          (y4, source5) = randomR (0, 1) source4
+      offset = seed1
+      scale = 1
+
+      (y,  source1) = randomR (0 :: Double, 99999 / 2 :: Double) source
+      (y1, source2) = randomR (0, 1) source1
+      (y2, source3) = randomR (0, 1) source2
+      (y3, source4) = randomR (0, 1) source3
+      (y4, source5) = randomR (0, 1) source4
 
 
 -- | Generate an ambiguous AmbiGenReal, and the next state of the ambiguity generator.
@@ -64,14 +68,14 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
     where draw = cauchyDraw offset scale y
           (y, source') = randomR (0, 1) source
 
-          threshold = fromIntegral numDraws ** 4
+          threshold = max (fromIntegral numDraws ** 4) (10 ** 5)
 
           rescale = if abs seed1 > threshold
                     then if (floor seed3) `mod` 2 == 0 then True else False
                     else False
 
           offset' = if rescale
-                    then sin (1 / (abs seed3 + 1))
+                    then sin seed3
                     else draw'
 
           scale' = if rescale
@@ -82,25 +86,30 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
 
 
+-- | Generate a shuffled list of ambiguous realizations.
 generateShuffle :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
-generateShuffle gen n = randomShuffle n gen' . takeForShuffle $ realizations
+generateShuffle gen n = randomShuffle n gen' $ realizations
   where
     gen' = last states
-    (realizations, states) = unzip $ generateState gen
+    (realizations, states) = unzip . takeForShuffle $ generateState gen
 
-    takeForShuffle :: (Num a, Ord a) => [a] -> [a]
-    takeForShuffle = takeForShuffleHelper False n []
+    -- Want to take at least 2 * n for shuffling.
+    -- Take 2 * n, and then test if we need more.
+    takeForShuffle :: (Num a, RealFrac a, RandomGen s) => [(a, AmbiGenState s)] -> [(a, AmbiGenState s)]
+    takeForShuffle = takeForShuffleHelper (2 * n) []
 
-    takeForShuffleHelper :: (Num a, Ord a) => Bool -> Int -> [a] -> [a] -> [a]
-    takeForShuffleHelper _ k rest []= rest
-    takeForShuffleHelper True 0 rest (x : xs) = x : rest
-    takeForShuffleHelper True k rest (x : xs) = takeForShuffleHelper True (k-1) (x : rest) xs
-    takeForShuffleHelper False k rest (x : xs)
-      = if abs x > 1000
-        then takeForShuffleHelper True (k-1) (x : rest) xs
-        else takeForShuffleHelper False (k-1) (x : rest) xs
+    takeForShuffleHelper :: (Num a, RealFrac a, RandomGen s) => Int -> [(a, AmbiGenState s)] -> [(a, AmbiGenState s)] -> [(a, AmbiGenState s)]
+    takeForShuffleHelper k rest [] = rest
+
+    takeForShuffleHelper 0 rest (x : xs)
+      = if toRange (0, 1) (fst x) == 0
+        then x : rest
+        else takeForShuffleHelper 0 (x : rest) xs
+
+    takeForShuffleHelper k rest (x : xs) = takeForShuffleHelper (k-1) (x : rest) xs
 
 
+-- | Generate shuffled ambiguous values with finite support.
 generateShuffleR :: (Integral a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
 generateShuffleR gen n range = map (toRange range) (generateShuffle gen n)
 
@@ -111,10 +120,13 @@ shuffle test n gen l = randomShuffle n gen $ takeWhile (not . test) l
 
 
 randomShuffle :: RandomGen s => Int -> AmbiGenState s -> [a] -> [a]
-randomShuffle n gen l = map (l !!) selectSequence
+randomShuffle n (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source) l =
+  map (l !!) selectSequence
   where
     selectSequence :: [Int]
-    selectSequence = generateR gen n (0, n-1)
+    selectSequence = take n $ randomRs (0, length l - 1) gen -- generateR gen n (0, length l - 1)
+
+    (_, gen) = split source
 
 
 generate :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
@@ -135,7 +147,7 @@ generateState ambi = (r, ambi') : generateState ambi'
   where (r, ambi') = nextAmbi ambi
 
 
-toRange :: Integral a => (a, a) -> AmbiGenReal -> a
+toRange :: (Integral a, Num b, RealFrac b) => (a, a) -> b -> a
 toRange (lo, hi) x
   | lo > hi = toRange (hi, lo) x
   | otherwise = floor x `mod` (hi - lo + 1) + lo

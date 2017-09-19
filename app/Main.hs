@@ -21,7 +21,7 @@ main
 
       let imageSize = (fromIntegral (800 * 2), fromIntegral (300 * runs))
 
-      ambiguityPlots <- plotAmbiguity runs samples range
+      ambiguityPlots <- plotShuffleAmbiguity runs samples range
       renderableToFile (fo_size .~ imageSize $ fo_format .~ SVG $ def) filepath ambiguityPlots
 
       return ()
@@ -36,7 +36,7 @@ plotTypeclassAmbiguity runs samples range
                   let ambi = mkAmbiGen source 0 0
                   let haskellValues = take samples $ randomRs (1 :: Int, 10) ambi
 
-                  return $ layoutToGrid (plotHistogram 10 (map fromIntegral haskellValues))
+                  return $ layoutToGrid (plotHistogram Nothing (map fromIntegral haskellValues))
 
 
 plotShuffleAmbiguity :: Int -> Int -> Integer -> IO (Renderable (LayoutPick Double Double Double))
@@ -63,23 +63,24 @@ combinedPlot :: Integer -> [AmbiGenReal] -> Grid (Renderable (LayoutPick Double 
 combinedPlot range values
   = histRealizations `beside` line `beside` histBinary `beside` hist
     where
-      hist = layoutToGrid $ plotHistogram range samples
+      hist = layoutToGrid $ plotHistogram (Just (0, fromInteger range)) samples
         where samples = map (fromIntegral . toRange (1, range)) values
 
-      histBinary = layoutToGrid $ plotHistogram range samples
+      histBinary = layoutToGrid $ plotHistogram (Just (0, 1)) samples
         where samples = map (fromIntegral . toRange (0, 1)) values
 
-      histRealizations = layoutToGrid $ plotHistogram range values
+      histRealizations = layoutToGrid $ plotHistogram Nothing values
 
       line = layoutToGrid $ plotRealizations (map realToFrac values)
 
 
-plotHistogram :: Integer -> [Double] -> Layout Double Double
+plotHistogram :: Maybe (Double, Double) -> [Double] -> Layout Double Double
 plotHistogram range samples
   = layout_plots .~ [hist] $ def
   where
     hist = histToPlot $
            plot_hist_values .~ samples $
+           plot_hist_range .~ range $
            defaultNormedPlotHist
 
 
