@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -22,11 +21,23 @@ import Data.Text
 
 -- | Samples, lower bound, upper bound.
 data FiniteData = FiniteData Int Integer Integer
-  deriving (Generic, Show, Eq)
+  deriving (Show, Eq)
 
 
-instance ToJSON FiniteData
-instance FromJSON FiniteData
+instance ToJSON FiniteData where
+  toJSON (FiniteData samples lower upper)
+    = object [ "samples" .= samples
+             , "lower" .= lower
+             , "upper" .= upper
+             ]
+
+
+instance FromJSON FiniteData where
+  parseJSON (Object v) = FiniteData
+    <$> v .: "samples"
+    <*> v .: "lower"
+    <*> v .: "upper"
+
 
 instance FromForm FiniteData where
   fromForm f = FiniteData
@@ -36,11 +47,18 @@ instance FromForm FiniteData where
 
 
 data RealizationData = RealizationData Int
-  deriving (Generic, Show, Eq)
+  deriving (Show, Eq)
 
 
-instance ToJSON RealizationData
-instance FromJSON RealizationData
+instance ToJSON RealizationData where
+  toJSON (RealizationData samples)
+    = object [ "samples" .= samples ]
+
+
+instance FromJSON RealizationData where
+  parseJSON (Object v) = RealizationData
+    <$> v .: "samples"
+
 
 instance FromForm RealizationData where
   fromForm f = RealizationData
