@@ -108,4 +108,5 @@ app = serve api ambiguityServer
 
 
 main :: IO ()
-main = run 8001 app
+main = do [port] <- (fmap read) <$> getArgs
+          run port app
