@@ -4,6 +4,7 @@ import System.Random
 import Data.ReinterpretCast
 import Data.IntMap hiding (map, split, foldl)
 import Data.Bits
+import Data.Fixed
 
 
 type AmbiGenReal = Double
@@ -113,10 +114,9 @@ generateShuffle gen n = randomShuffle n gen' $ realizations
 generateShuffleR :: (Integral a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
 generateShuffleR gen n range = map (toRange range) (generateShuffle gen n)
 
-
--- | Take a possibly infinite list and shuffle it ambiguously using a stopping condition.
-shuffle :: RandomGen s => (a -> Bool) -> Int -> AmbiGenState s -> [a] -> [a]
-shuffle test n gen l = randomShuffle n gen $ takeWhile (not . test) l
+-- | Generate shuffled continuous values.
+generateShuffleContinuousR :: (RealFrac a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
+generateShuffleContinuousR gen n range = map (toContinuous range) (generateShuffle gen n)
 
 
 randomShuffle :: RandomGen s => Int -> AmbiGenState s -> [a] -> [a]
@@ -124,7 +124,7 @@ randomShuffle n (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDr
   map (l !!) selectSequence
   where
     selectSequence :: [Int]
-    selectSequence = take n $ randomRs (0, length l - 1) gen -- generateR gen n (0, length l - 1)
+    selectSequence = take n $ randomRs (0, length l - 1) gen
 
     (_, gen) = split source
 
@@ -135,6 +135,15 @@ generate ambi n = take n . map fst $ generateState ambi
 
 generateR :: (Integral a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
 generateR ambi n range = take n . map fst $ generateStateR ambi range
+
+
+generateContinuousR :: (RealFrac a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
+generateContinuousR ambi n range = take n . map fst $ generateStateContinuousR ambi range
+
+
+generateStateContinuousR :: (RealFrac a, RandomGen s) => AmbiGenState s -> (a, a) -> [(a, AmbiGenState s)]
+generateStateContinuousR ambi range = map tupleToRange $ generateState ambi
+  where tupleToRange (v, ambi) = (toContinuous range v, ambi)
 
 
 generateStateR :: (Integral a, RandomGen s) => AmbiGenState s -> (a, a) -> [(a, AmbiGenState s)]
@@ -151,6 +160,13 @@ toRange :: (Integral a, Num b, RealFrac b) => (a, a) -> b -> a
 toRange (lo, hi) x
   | lo > hi = toRange (hi, lo) x
   | otherwise = floor x `mod` (hi - lo + 1) + lo
+
+
+toContinuous :: (RealFrac a, Num b, RealFrac b) => (a, a) -> b -> a
+toContinuous (lo, hi) x
+  | lo > hi = toContinuous (hi, lo) x
+  | otherwise = (realToFrac x) `mod'` (hi - lo + 1) + lo
+
 
 
 -- | RandomGen instance for the ambiguity generator.
