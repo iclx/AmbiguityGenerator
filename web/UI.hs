@@ -56,10 +56,11 @@ forms finiteLink realizationLink
 blurb :: Html ()
 blurb
   = div_ [class_ "card-panel hoverable"] $
-    p_ "This website generates ambiguous random values in a CSV\
+    p_ "This website generates ambiguous random values in a CSV \
        \format. Additionally there is an API available."
 
 
 homePage :: Link -> Link -> Html ()
 homePage finiteLink realizationLink
-  = blurb `mappend` forms finiteLink realizationLink
+  = div_ [class_ "container"] $
+    blurb `mappend` forms finiteLink realizationLink
