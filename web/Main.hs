@@ -95,7 +95,7 @@ type FiniteAPI = "finite"
 
 type RealizationAPI = "realizations"
                       :> ReqBody '[FormUrlEncoded, JSON] RealizationData
-                      :> Post '[AmbigCSV, JSON] [Double]
+                      :> Post '[AmbigCSV, JSON] (Headers '[Header "Content-Disposition" String] [Double])
 
 
 type AmbiguityAPI = FiniteAPI :<|> RealizationAPI :<|> Raw
@@ -114,16 +114,22 @@ ambiguityServer = finite :<|> realizations :<|> serveDirectoryFileServer "static
                let ambi = mkAmbiGen gen 0 0
                let values = generateR ambi samples (low, high)
 
-               return $ addHeader "filename=\"finite.csv\"" values
+               let filename = concat ["finite-", show samples, "-", show low, "-", show high, ".csv"]
+               let header = concat ["filename=\"", filename, "\""]
 
-        realizations :: RealizationData -> Handler [Double]
+               return $ addHeader header values
+
+        realizations :: RealizationData -> Handler (Headers '[Header "Content-Disposition" String] [Double])
         realizations (RealizationData samples)
           = do gen <- liftIO newStdGen
 
                let ambi = mkAmbiGen gen 0 0
                let values = generate ambi samples
 
-               return values
+               let filename = concat ["realizations-", show samples, ".csv"]
+               let header = concat ["filename=\"", filename, "\""]
+
+               return $ addHeader header values
 
 
 app :: Application
