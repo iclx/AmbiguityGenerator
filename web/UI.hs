@@ -17,6 +17,7 @@ materialize
 finiteForm :: Link -> Html ()
 finiteForm link
   = let url = T.pack . show . linkURI $ link in
+    div_ [class_ "card-panel hoverable"] $
     form_ [method_ "POST", action_ url] $ do
       input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
       input_ [type_ "number", name_ "lower", placeholder_ "lower", required_ ""]
@@ -27,6 +28,19 @@ finiteForm link
 realizationForm :: Link -> Html ()
 realizationForm link
   = let url = T.pack . show . linkURI $ link in
+    div_ [class_ "card-panel hoverable"] $
     form_ [method_ "POST", action_ url] $ do
       input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
       input_ [type_ "submit", value_ "Download CSV"]
+
+
+blurb :: Html ()
+blurb
+  = div_ [class_ "card-panel hoverable"] $
+    p_ "This website generates ambiguous random values in a CSV\
+       \format. Additionally there is an API available."
+
+
+homePage :: Link -> Link -> Html ()
+homePage finiteLink realizationLink
+  = blurb `mappend` finiteForm finiteLink `mappend` realizationForm realizationLink

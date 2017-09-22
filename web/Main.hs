@@ -50,7 +50,7 @@ ambiguityServer = finite :<|> realizations :<|> servePage
 
         servePage :: Handler (Html ())
         servePage = return $ materialize `mappend`
-          ((finiteForm (safeLink api finiteAPI)) `mappend` (realizationForm (safeLink api realizationAPI)))
+          homePage (safeLink api finiteAPI) (safeLink api realizationAPI)
 
 
 app :: Application
