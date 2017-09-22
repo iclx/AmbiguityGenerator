@@ -44,6 +44,7 @@ executable ambiguity-server
   hs-source-dirs:      web
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O3
+  other-modules:       API, UI
   build-depends:       base
                      , Ambiguity
                      , random >= 1.1 && < 1.2
