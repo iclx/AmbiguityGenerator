@@ -47,8 +47,11 @@ executable ambiguity-server
   build-depends:       base
                      , Ambiguity
                      , random >= 1.1 && < 1.2
-                     , servant-server >= 0.11 && < 0.12
                      , servant >= 0.11 && < 0.12
+                     , servant-server >= 0.11 && < 0.12
+                     , servant-lucid >= 0.7.1 && < 0.8
+                     , lucid >= 2.9.8.1 && < 3
+                     , text-show >= 3.6 && < 3.7
                      , http-media >= 0.6.4 && < 0.7
                      , warp >= 3.2.13 && < 3.3
                      , wai >= 3.2.1.1 && < 3.3

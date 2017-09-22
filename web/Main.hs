@@ -19,6 +19,11 @@ import Servant
 import Data.Aeson
 import GHC.Generics
 import Web.Internal.FormUrlEncoded
+import Lucid
+import Servant.HTML.Lucid
+import qualified Data.Text as T
+import TextShow
+
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 
@@ -93,20 +98,49 @@ type FiniteAPI = "finite"
                  :> Post '[AmbigCSV, JSON] (Headers '[Header "Content-Disposition" String] [Integer])
 
 
+finiteAPI :: Proxy FiniteAPI
+finiteAPI = Proxy
+
+
 type RealizationAPI = "realizations"
                       :> ReqBody '[FormUrlEncoded, JSON] RealizationData
                       :> Post '[AmbigCSV, JSON] (Headers '[Header "Content-Disposition" String] [Double])
 
 
-type AmbiguityAPI = FiniteAPI :<|> RealizationAPI :<|> Raw
+realizationAPI :: Proxy RealizationAPI
+realizationAPI = Proxy
+
+
+type WebPage = Get '[HTML] (Html ())
+
+
+type AmbiguityAPI = FiniteAPI :<|> RealizationAPI :<|> WebPage
 
 
 api :: Proxy AmbiguityAPI
 api = Proxy
 
 
+finiteForm :: Link -> Html ()
+finiteForm link
+  = let url = T.pack . show . linkURI $ link in
+    form_ [method_ "POST", action_ url] $ do
+      input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
+      input_ [type_ "number", name_ "lower", placeholder_ "lower", required_ ""]
+      input_ [type_ "number", name_ "upper", placeholder_ "upper", required_ ""]
+      input_ [type_ "submit", value_ "Download CSV"]
+
+
+realizationForm :: Link -> Html ()
+realizationForm link
+  = let url = T.pack . show . linkURI $ link in
+    form_ [method_ "POST", action_ url] $ do
+      input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
+      input_ [type_ "submit", value_ "Download CSV"]
+
+
 ambiguityServer :: Server AmbiguityAPI
-ambiguityServer = finite :<|> realizations :<|> serveDirectoryFileServer "static/"
+ambiguityServer = finite :<|> realizations :<|> servePage
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         finite (FiniteData samples low high)
           = do gen <- liftIO newStdGen
@@ -131,11 +165,15 @@ ambiguityServer = finite :<|> realizations :<|> serveDirectoryFileServer "static
 
                return $ addHeader header values
 
+        servePage :: Handler (Html ())
+        servePage = return $
+          ((finiteForm (safeLink api finiteAPI)) `mappend` (realizationForm (safeLink api realizationAPI)))
+
 
 app :: Application
 app = serve api ambiguityServer
 
 
 main :: IO ()
-main = do [port] <- (fmap read) <$> getArgs
+main = do [port] <- fmap read <$> getArgs
           run port app
