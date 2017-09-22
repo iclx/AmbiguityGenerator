@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE EmptyDataDecls #-}
 
 module Main where
 
@@ -12,11 +14,13 @@ import Control.Monad.IO.Class
 import Data.List
 import Network.Wai
 import Network.Wai.Handler.Warp
+import qualified Network.HTTP.Media as M
 import Servant
 import Data.Aeson
 import GHC.Generics
 import Web.Internal.FormUrlEncoded
-import Data.Text
+
+import qualified Data.ByteString.Lazy.Char8 as BS
 
 
 -- | Samples, lower bound, upper bound.
@@ -65,17 +69,36 @@ instance FromForm RealizationData where
     <$> parseUnique "samples" f
 
 
+instance Show a => MimeRender PlainText [a] where
+  mimeRender _ val = BS.pack (intercalate ", " (map show val))
+
+
+instance Show a => MimeRender OctetStream [a] where
+  mimeRender _ val = BS.pack (intercalate ", " (map show val))
+
+
+instance Show a => MimeRender AmbigCSV [a] where
+  mimeRender _ val = BS.pack (intercalate ", " (map show val))
+
+
+data AmbigCSV
+
+
+instance Accept AmbigCSV where
+  contentType _ = "text" M.// "csv" M./: ("charset", "utf-8")
+
+
 type FiniteAPI = "finite"
                  :> ReqBody '[FormUrlEncoded, JSON] FiniteData
-                 :> Post '[JSON] [Integer]
+                 :> Post '[AmbigCSV, JSON] (Headers '[Header "Content-Disposition" String] [Integer])
 
 
 type RealizationAPI = "realizations"
                       :> ReqBody '[FormUrlEncoded, JSON] RealizationData
-                      :> Post '[JSON] [Double]
+                      :> Post '[AmbigCSV, JSON] [Double]
 
 
-type AmbiguityAPI = FiniteAPI :<|> RealizationAPI
+type AmbiguityAPI = FiniteAPI :<|> RealizationAPI :<|> Raw
 
 
 api :: Proxy AmbiguityAPI
@@ -83,15 +106,15 @@ api = Proxy
 
 
 ambiguityServer :: Server AmbiguityAPI
-ambiguityServer = finite :<|> realizations
-  where finite :: FiniteData -> Handler [Integer]
+ambiguityServer = finite :<|> realizations :<|> serveDirectoryFileServer "static/"
+  where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         finite (FiniteData samples low high)
           = do gen <- liftIO newStdGen
 
                let ambi = mkAmbiGen gen 0 0
                let values = generateR ambi samples (low, high)
 
-               return values
+               return $ addHeader "filename=\"finite.csv\"" values
 
         realizations :: RealizationData -> Handler [Double]
         realizations (RealizationData samples)
