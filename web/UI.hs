@@ -14,24 +14,43 @@ materialize
     script_ [src_ "https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"] ("" :: T.Text)
 
 
+downloadCsvButton :: Html ()
+downloadCsvButton
+  = div_ [class_ "card-action"] $
+    input_ [type_ "submit", value_ "Download CSV", class_ "waves-effect waves-light btn"]
+
+
+makeCard :: Html () -> Html ()
+makeCard = div_ [class_ "col s6 card-panel hoverable"]
+
+
 finiteForm :: Link -> Html ()
 finiteForm link
   = let url = T.pack . show . linkURI $ link in
-    div_ [class_ "card-panel hoverable"] $
+    makeCard $ do
+    span_ [class_ "card-title"] "Finite Support"
     form_ [method_ "POST", action_ url] $ do
       input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
       input_ [type_ "number", name_ "lower", placeholder_ "lower", required_ ""]
       input_ [type_ "number", name_ "upper", placeholder_ "upper", required_ ""]
-      input_ [type_ "submit", value_ "Download CSV"]
+      downloadCsvButton
 
 
 realizationForm :: Link -> Html ()
 realizationForm link
   = let url = T.pack . show . linkURI $ link in
-    div_ [class_ "card-panel hoverable"] $
+    makeCard $ do
+    span_ [class_ "card-title"] "Raw Realizations"
     form_ [method_ "POST", action_ url] $ do
       input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
-      input_ [type_ "submit", value_ "Download CSV"]
+      downloadCsvButton
+
+
+forms :: Link -> Link -> Html ()
+forms finiteLink realizationLink
+  = finite `mappend` realization
+  where finite = finiteForm finiteLink
+        realization = realizationForm realizationLink
 
 
 blurb :: Html ()
@@ -43,4 +62,4 @@ blurb
 
 homePage :: Link -> Link -> Html ()
 homePage finiteLink realizationLink
-  = blurb `mappend` finiteForm finiteLink `mappend` realizationForm realizationLink
+  = blurb `mappend` forms finiteLink realizationLink
