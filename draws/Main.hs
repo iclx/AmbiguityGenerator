@@ -20,7 +20,7 @@ main
 drawBits :: String -> Int -> Int -> IO ()
 drawBits fileBase samples run
   = do gen <- newStdGen
-       let ambi = mkAmbiGen gen 0 0
+       let ambi = mkAmbiGen gen 0 0 0 0
 
        let values = generateR ambi samples (0,1)
        let output = intercalate ", " (map show values)
@@ -31,7 +31,7 @@ drawBits fileBase samples run
 drawDigits :: String -> Int -> Int -> IO ()
 drawDigits fileBase samples run
   = do gen <- newStdGen
-       let ambi = mkAmbiGen gen 0 0
+       let ambi = mkAmbiGen gen 0 0 0 0
 
        let values = generateR ambi samples (0,9)
        let output = intercalate ", " (map show values)
@@ -42,7 +42,7 @@ drawDigits fileBase samples run
 drawAmbiguous :: String -> Int -> Int -> IO ()
 drawAmbiguous fileBase samples run
   = do gen <- newStdGen
-       let ambi = mkAmbiGen gen 0 0
+       let ambi = mkAmbiGen gen 0 0 0 0
 
        let values = generate ambi samples
        let output = intercalate ", " (map show values)

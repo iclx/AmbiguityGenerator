@@ -33,7 +33,7 @@ plotTypeclassAmbiguity runs samples range
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do source <- newStdGen
-                  let ambi = mkAmbiGen source 0 0
+                  let ambi = mkAmbiGen source 0 0 0 0
                   let haskellValues = take samples $ randomRs (1 :: Int, 10) ambi
 
                   return $ layoutToGrid (plotHistogram Nothing (map fromIntegral haskellValues))
@@ -45,7 +45,7 @@ plotShuffleAmbiguity runs samples range
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do source <- newStdGen
-                  let values = generateShuffle (mkAmbiGen source (1 / fromIntegral samples) (0.0001)) samples
+                  let values = generateShuffle (mkAmbiGen source (1 / fromIntegral samples) (0.0001) 0 0) samples
                   return $ combinedPlot range values
 
 
@@ -55,7 +55,7 @@ plotAmbiguity runs samples range
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do source <- newStdGen
-                  let values = generate (mkAmbiGen source (1 / fromIntegral samples) (0.0001)) samples
+                  let values = generate (mkAmbiGen source (1 / fromIntegral samples) (0.0001) 0 0) samples
                   return $ combinedPlot range values
 
 

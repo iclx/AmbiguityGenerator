@@ -40,8 +40,8 @@ instance Show (AmbiGenState s) where
 
 -- | Initialize the ambiguity generator.
 --   This will also run the first couple of steps to get the seeds.
-mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
-mkAmbiGen source phi psi
+mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
+mkAmbiGen source phi psi startOffLow startOffHigh
   = last states
     where
       (_, states) = unzip . take 1000 $ generateState ambiInit
@@ -55,7 +55,7 @@ mkAmbiGen source phi psi
       offset = seed1
       scale = 1
 
-      (y,  source1) = randomR (0 :: Double, 99999 / 2 :: Double) source
+      (y,  source1) = randomR (startOffLow :: Double, startOffHigh :: Double) source
       (y1, source2) = randomR (0, 1) source1
       (y2, source3) = randomR (0, 1) source2
       (y3, source4) = randomR (0, 1) source3
@@ -215,8 +215,3 @@ drawHistogram range num generator
 
 proportion :: Integer -> [Int] -> Float
 proportion y (x : xs) = fromIntegral x / fromIntegral y
-
-
-paperGen :: StdGen -> Int -> Integer ->  [Integer]
-paperGen s n range
-  = generateR (mkAmbiGen s (1 / fromIntegral n) 0.0001) n (1, fromIntegral range)

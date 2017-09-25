@@ -12,6 +12,7 @@ import System.Environment
 import Control.Monad
 import Control.Monad.IO.Class
 import Network.Wai
+import Network.Wai.Logger
 import Network.Wai.Handler.Warp
 import Servant
 import Servant.HTML.Lucid
@@ -25,11 +26,13 @@ import API
 ambiguityServer :: Server AmbiguityAPI
 ambiguityServer = finite :<|> realizations :<|> servePage
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
-        finite (FiniteData samples low high)
+        finite (FiniteData samples low high shuffled offLow offHigh)
           = do gen <- liftIO newStdGen
 
-               let ambi = mkAmbiGen gen 0 0
-               let values = generateR ambi samples (low, high)
+               let ambi = mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
+               let values = if shuffled
+                            then generateShuffleR ambi samples (low, high)
+                            else generateR ambi samples (low, high)
 
                let filename = concat ["finite-", show samples, "-", show low, "-", show high, ".csv"]
                let header = concat ["filename=\"", filename, "\""]
@@ -37,11 +40,13 @@ ambiguityServer = finite :<|> realizations :<|> servePage
                return $ addHeader header values
 
         realizations :: RealizationData -> Handler (Headers '[Header "Content-Disposition" String] [Double])
-        realizations (RealizationData samples)
+        realizations (RealizationData samples shuffled offLow offHigh)
           = do gen <- liftIO newStdGen
 
-               let ambi = mkAmbiGen gen 0 0
-               let values = generate ambi samples
+               let ambi = mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
+               let values = if shuffled
+                            then generateShuffle ambi samples
+                            else generate ambi samples
 
                let filename = concat ["realizations-", show samples, ".csv"]
                let header = concat ["filename=\"", filename, "\""]
@@ -49,8 +54,7 @@ ambiguityServer = finite :<|> realizations :<|> servePage
                return $ addHeader header values
 
         servePage :: Handler (Html ())
-        servePage = return $ materialize `mappend`
-          homePage (safeLink api finiteAPI) (safeLink api realizationAPI)
+        servePage = return $ homePage (safeLink api finiteAPI) (safeLink api realizationAPI)
 
 
 app :: Application
@@ -59,6 +63,8 @@ app = serve api ambiguityServer
 
 main :: IO ()
 main = do [port] <- fmap read <$> getArgs
-          run port app
+          withStdoutLogger $ \aplogger -> do
+            let settings = setPort port $ setLogger aplogger defaultSettings
+            runSettings settings app
 
           

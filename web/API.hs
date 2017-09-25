@@ -6,26 +6,31 @@
 
 module API where
 
+import Ambiguity
 import Servant
 import Servant.HTML.Lucid
 import Lucid
 import Data.List
 import Data.Aeson
+import Data.Maybe
 import Web.Internal.FormUrlEncoded
 import qualified Network.HTTP.Media as M
 import qualified Data.ByteString.Lazy.Char8 as BS
 
 
--- | Samples, lower bound, upper bound.
-data FiniteData = FiniteData Int Integer Integer
+-- | Samples, lower bound, upper bound, shuffle, offLow, offHigh.
+data FiniteData = FiniteData Int Integer Integer Bool AmbiGenReal AmbiGenReal
   deriving (Show, Eq)
 
 
 instance ToJSON FiniteData where
-  toJSON (FiniteData samples lower upper)
+  toJSON (FiniteData samples lower upper shuffled offLow offHigh)
     = object [ "samples" .= samples
              , "lower" .= lower
              , "upper" .= upper
+             , "shuffled" .= shuffled
+             , "offLow" .= offLow
+             , "offHigh" .= offHigh
              ]
 
 
@@ -34,6 +39,9 @@ instance FromJSON FiniteData where
     <$> v .: "samples"
     <*> v .: "lower"
     <*> v .: "upper"
+    <*> (fromMaybe False <$> (v .:? "shuffled"))
+    <*> (fromMaybe 0 <$> (v .:? "offLow"))
+    <*> (fromMaybe 0 <$> (v .:? "offHigh"))
 
 
 instance FromForm FiniteData where
@@ -41,25 +49,38 @@ instance FromForm FiniteData where
     <$> parseUnique "samples" f
     <*> parseUnique "lower" f
     <*> parseUnique "upper" f
+    <*> (fromMaybe False <$> (parseMaybe "shuffled" f))
+    <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
+    <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
 
 
-data RealizationData = RealizationData Int
+data RealizationData = RealizationData Int Bool AmbiGenReal AmbiGenReal
   deriving (Show, Eq)
 
 
 instance ToJSON RealizationData where
-  toJSON (RealizationData samples)
-    = object [ "samples" .= samples ]
+  toJSON (RealizationData samples shuffled offLow offHigh)
+    = object [ "samples" .= samples
+             , "shuffled" .= shuffled
+             , "offLow" .= offLow
+             , "offHigh" .= offHigh
+             ]
 
 
 instance FromJSON RealizationData where
   parseJSON (Object v) = RealizationData
     <$> v .: "samples"
+    <*> (fromMaybe False <$> (v .:? "shuffled"))
+    <*> (fromMaybe 0 <$> (v .:? "offLow"))
+    <*> (fromMaybe 0 <$> (v .:? "offHigh"))
 
 
 instance FromForm RealizationData where
   fromForm f = RealizationData
     <$> parseUnique "samples" f
+    <*> (fromMaybe False <$> (parseMaybe "shuffled" f))
+    <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
+    <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
 
 
 instance Show a => MimeRender PlainText [a] where
