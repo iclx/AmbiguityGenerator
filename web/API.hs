@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE EmptyDataDecls #-}
 
@@ -13,6 +14,7 @@ import Lucid
 import Data.List
 import Data.Aeson
 import Data.Maybe
+import qualified Data.Text as T
 import Web.Internal.FormUrlEncoded
 import qualified Network.HTTP.Media as M
 import qualified Data.ByteString.Lazy.Char8 as BS
@@ -54,6 +56,17 @@ instance FromForm FiniteData where
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
 
 
+instance ToForm FiniteData where
+  toForm (FiniteData samples lower upper shuffled offLow offHigh) =
+    [ ("samples", toQueryParam samples)
+    , ("lower", toQueryParam lower)
+    , ("upper", toQueryParam upper)
+    , ("shuffled", toQueryParam shuffled)
+    , ("offLow", toQueryParam offLow)
+    , ("offHigh", toQueryParam offHigh)
+    ]
+
+
 data RealizationData = RealizationData Int Bool AmbiGenReal AmbiGenReal
   deriving (Show, Eq)
 
@@ -81,6 +94,15 @@ instance FromForm RealizationData where
     <*> (fromMaybe False <$> (parseMaybe "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
+
+
+instance ToForm RealizationData where
+  toForm (RealizationData samples shuffled offLow offHigh) =
+    [ ("samples", toQueryParam samples)
+    , ("shuffled", toQueryParam shuffled)
+    , ("offLow", toQueryParam offLow)
+    , ("offHigh", toQueryParam offHigh)
+    ]
 
 
 instance Show a => MimeRender PlainText [a] where
@@ -120,11 +142,18 @@ realizationAPI :: Proxy RealizationAPI
 realizationAPI = Proxy
 
 
+type AmbiguityAPI = FiniteAPI :<|> RealizationAPI
+
+
+ambiguityApi :: Proxy AmbiguityAPI
+ambiguityApi = Proxy
+
+
 type WebPage = Get '[HTML] (Html ())
+type Docs = "docs" :> Get '[PlainText] T.Text
+
+type SiteAPI = AmbiguityAPI :<|> Docs :<|> WebPage
 
 
-type AmbiguityAPI = FiniteAPI :<|> RealizationAPI :<|> WebPage
-
-
-api :: Proxy AmbiguityAPI
+api :: Proxy SiteAPI
 api = Proxy

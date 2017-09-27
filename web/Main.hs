@@ -15,16 +15,19 @@ import Network.Wai
 import Network.Wai.Logger
 import Network.Wai.Handler.Warp
 import Servant
+import Servant.Docs
 import Servant.HTML.Lucid
 import Lucid
+import qualified Data.Text as T
 
 import TextShow
 import UI
 import API
+import Docs
 
 
-ambiguityServer :: Server AmbiguityAPI
-ambiguityServer = finite :<|> realizations :<|> servePage
+ambiguityServer :: Server SiteAPI
+ambiguityServer = (finite :<|> realizations) :<|> serveDocs :<|> servePage 
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         finite (FiniteData samples low high shuffled offLow offHigh)
           = do gen <- liftIO newStdGen
@@ -55,6 +58,9 @@ ambiguityServer = finite :<|> realizations :<|> servePage
 
         servePage :: Handler (Html ())
         servePage = return $ homePage (safeLink api finiteAPI) (safeLink api realizationAPI)
+
+        serveDocs :: Handler T.Text
+        serveDocs = return . T.pack . markdown $ apiDocs
 
 
 app :: Application
