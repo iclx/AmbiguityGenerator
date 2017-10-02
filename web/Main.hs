@@ -72,5 +72,3 @@ main = do [port] <- fmap read <$> getArgs
           withStdoutLogger $ \aplogger -> do
             let settings = setPort port $ setLogger aplogger defaultSettings
             runSettings settings app
-
-          

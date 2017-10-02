@@ -5,16 +5,21 @@ module UI where
 import Lucid
 import Lucid.Base
 import Servant
+import Data.Monoid
 import qualified Data.Text as T
+
+
+baseUrl :: Html ()
+baseUrl = "ambiguity.typesofnote.com"
 
 
 materialize :: Html ()
 materialize
-  = link_ [rel_ "stylesheet", href_"https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css"]
-    `mappend`
-    script_ [src_ "https://code.jquery.com/jquery-2.1.1.min.js"] ("" :: T.Text)
-    `mappend`
-    script_ [src_ "https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"] ("" :: T.Text)
+  = mconcat
+    [ link_ [rel_ "stylesheet", href_"https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css"]
+    , script_ [src_ "https://code.jquery.com/jquery-2.1.1.min.js"] ("" :: T.Text)
+    , script_ [src_ "https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"] ("" :: T.Text)
+    ]
 
 
 downloadCsvButton :: Html ()
@@ -42,15 +47,49 @@ shuffle
 advancedSettings :: Html ()
 advancedSettings
   = ul_ [class_ "collapsible z-depth-0", data_collapsible_ "expandable"] $ li_ $ do
-      (div_ [class_ "collapsible-header"] $ do {i_ [class_ "material-icons"] "settings"; "Advanced settings"})
-      (div_ [class_ "collapsible-body"] $ do
-          shuffle
-          div_ $ do
-            div_ "Initial offset lower bound: "
-            input_ [type_ "number", name_ "offLow", value_ "0", placeholder_ "initial offset lower bound", required_ ""]
-          div_ $ do
-            "Initial offset upper bound: "
-            input_ [type_ "number", name_ "offHigh", value_ "0", placeholder_ "initial offset upper bound", required_ ""])
+      div_ [class_ "collapsible-header"] $ do {i_ [class_ "material-icons"] "settings"; "Advanced settings"}
+      div_ [class_ "collapsible-body"] $ do
+        shuffle
+        div_ $ do
+          div_ "Initial offset lower bound: "
+          input_ [type_ "number", name_ "offLow", value_ "0", placeholder_ "initial offset lower bound", required_ ""]
+        div_ $ do
+          "Initial offset upper bound: "
+          input_ [type_ "number", name_ "offHigh", value_ "0", placeholder_ "initial offset upper bound", required_ ""]
+
+
+makeExample :: Html () -> Html () -> Html ()
+makeExample title example
+  = ul_ [class_ "collection with-header"] $ do
+      li_ [class_ "collection-header"] $ h5_ [class_ "title"] $ title
+      li_ [class_ "collection-item"] $ code_ [class_ "prettyprint"] $ example
+
+
+examples :: Html ()
+examples
+  = mconcat
+    [ makeExample "Curl" ("curl -H \"Content-Type: application/json\" \
+                          \-X POST -d '{\"samples\":1000, \"lower\":0, \
+                          \\"upper\":10}'" <> baseUrl <> "/finite")
+
+    , makeExample "Python" ("import requests; r=requests.post('http://" <>
+                            baseUrl <>
+                            "/finite', data={\"samples\":1000, \"lower\":0, \
+                            \\"upper\":10})")
+
+    , makeExample "Mathematica" ("URLExecute[\"http://" <> baseUrl <> "/finite\" \
+                                 \, {\"format\" -> \"json\", \"samples\" -> 1000, \
+                                 \\"lower\" -> 0, \"upper\" -> 10, \
+                                 \\"shuffled\" -> false}, \"Method\" -> \"POST\"]")
+
+    ]
+
+
+exampleCollapsible :: Html ()
+exampleCollapsible
+  = ul_ [class_ "collapsible z-depth-0", data_collapsible_ "expandable"] $ li_ $ do
+      div_ [class_ "collapsible-header"] $ do {i_ [class_ "material-icons"] "code"; "API examples"}
+      div_ [class_ "collapsible-body"] $ examples
 
 
 makeCard :: Html () -> Html ()
@@ -63,9 +102,9 @@ finiteForm link
     makeCard $ do
     span_ [class_ "card-title"] "Finite Support"
     form_ [method_ "POST", action_ url] $ do
-      input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
-      input_ [type_ "number", name_ "lower", placeholder_ "lower", required_ ""]
-      input_ [type_ "number", name_ "upper", placeholder_ "upper", required_ ""]
+      input_ [type_ "number", name_ "samples", placeholder_ "number of draws", required_ ""]
+      input_ [type_ "number", name_ "lower", placeholder_ "lower bound", required_ ""]
+      input_ [type_ "number", name_ "upper", placeholder_ "upper bound", required_ ""]
       advancedSettings
       downloadCsvButton
 
@@ -76,7 +115,7 @@ realizationForm link
     makeCard $ do
     span_ [class_ "card-title"] "Raw Realizations"
     form_ [method_ "POST", action_ url] $ do
-      input_ [type_ "number", name_ "samples", placeholder_ "samples", required_ ""]
+      input_ [type_ "number", name_ "samples", placeholder_ "number of draws", required_ ""]
       advancedSettings
       downloadCsvButton
 
@@ -90,9 +129,18 @@ forms finiteLink realizationLink
 
 blurb :: Html ()
 blurb
-  = div_ [class_ "card-panel hoverable"] $
-    p_ "This website generates ambiguous random values in a CSV \
-       \format. Additionally there is an API available."
+  = div_ [class_ "card-panel hoverable"] $ do
+      p_ $ do {"This website generates ambiguous random values in a CSV \
+               \format. Don't know what ambiguous random values are? You \
+               \can read about them in the paper ";
+               a_ [href_ "https://doi.org/10.1287/mnsc.1100.1307"] "here";
+               ", which we encourage you to cite!"}
+      p_ "Here's some other links which you might find useful:"
+      ol_ $ do
+        li_ (a_ [href_ "https://doi.org/10.1287/mnsc.1100.1307"] "Paper")
+        li_ (a_ [href_ "https://github.com/HaskellAmbiguity/AmbiguityGenerator"] "Source Code")
+        li_ (a_ [href_ "docs"] "Auto-Generated API Docs")
+      exampleCollapsible
 
 
 homePage :: Link -> Link -> Html ()
@@ -101,5 +149,6 @@ homePage finiteLink realizationLink
       head_ $ do
         materialize
         link_ [href_ "https://fonts.googleapis.com/icon?family=Material+Icons", rel_ "stylesheet"]
+        script_ [src_ "https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"] ("" :: T.Text)
       body_ $ do
         div_ [class_ "container"] $ blurb `mappend` forms finiteLink realizationLink

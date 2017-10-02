@@ -41,7 +41,7 @@ instance FromJSON FiniteData where
     <$> v .: "samples"
     <*> v .: "lower"
     <*> v .: "upper"
-    <*> (fromMaybe False <$> (v .:? "shuffled"))
+    <*> (fromMaybe True <$> (v .:? "shuffled"))
     <*> (fromMaybe 0 <$> (v .:? "offLow"))
     <*> (fromMaybe 0 <$> (v .:? "offHigh"))
 
@@ -51,7 +51,7 @@ instance FromForm FiniteData where
     <$> parseUnique "samples" f
     <*> parseUnique "lower" f
     <*> parseUnique "upper" f
-    <*> (fromMaybe False <$> (parseMaybe "shuffled" f))
+    <*> (fromMaybe True <$> (parseMaybe "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
 
