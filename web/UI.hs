@@ -70,7 +70,7 @@ examples
   = mconcat
     [ makeExample "Curl" ("curl -H \"Content-Type: application/json\" \
                           \-X POST -d '{\"samples\":1000, \"lower\":0, \
-                          \\"upper\":10}'" <> baseUrl <> "/finite")
+                          \\"upper\":10}' " <> baseUrl <> "/finite")
 
     , makeExample "Python" ("import requests; r=requests.post('http://" <>
                             baseUrl <>
