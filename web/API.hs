@@ -20,6 +20,11 @@ import qualified Network.HTTP.Media as M
 import qualified Data.ByteString.Lazy.Char8 as BS
 
 
+checkShuffled :: [Bool] -> Bool
+checkShuffled [] = True
+checkShuffled vs = any id vs
+
+
 -- | Samples, lower bound, upper bound, shuffle, offLow, offHigh.
 data FiniteData = FiniteData Int Integer Integer Bool AmbiGenReal AmbiGenReal
   deriving (Show, Eq)
@@ -51,7 +56,7 @@ instance FromForm FiniteData where
     <$> parseUnique "samples" f
     <*> parseUnique "lower" f
     <*> parseUnique "upper" f
-    <*> (fromMaybe True <$> (parseMaybe "shuffled" f))
+    <*> (checkShuffled <$> (parseAll "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
 
@@ -91,7 +96,7 @@ instance FromJSON RealizationData where
 instance FromForm RealizationData where
   fromForm f = RealizationData
     <$> parseUnique "samples" f
-    <*> (fromMaybe False <$> (parseMaybe "shuffled" f))
+    <*> (checkShuffled <$> (parseAll "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
 
