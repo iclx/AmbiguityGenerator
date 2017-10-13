@@ -38,6 +38,7 @@ shuffle
       "Shuffling: "
       div_ [class_ "switch"] $
         label_ $ do
+          input_ [type_ "hidden", name_ "shuffled", value_ "false"]
           input_ [type_ "checkbox", name_ "shuffled", value_ "true", checked_]
           "Off"
           span_ [class_ "lever"] ""
@@ -77,13 +78,13 @@ examples
                             "/finite', data={\"samples\":1000, \"lower\":0, \
                             \\"upper\":10})")
 
-    , makeExample "Mathematica" ("URLExecute[\"http://" <> baseUrl <> "/finite\"\
+    , makeExample "Mathematica" ("Table[ToExpression[StringJoin[\"{\", \
+                                 \URLExecute[\"http://" <> baseUrl <> "/finite\"\
                                  \, {\"format\" -> \"json\", \"samples\" -> 1000, \
                                  \\"lower\" -> 0, \"upper\" -> 10, \
-                                 \\"shuffled\" -> false}, \"Method\" -> \"POST\"]")
-
+                                 \\"shuffled\" -> false}, \"Method\" -> \"POST\"]\
+                                 \, \"}\"]], {1000}];")
     ]
-
 
 exampleCollapsible :: Html ()
 exampleCollapsible
@@ -93,13 +94,13 @@ exampleCollapsible
 
 
 makeCard :: Html () -> Html ()
-makeCard = div_ [class_ "col s6 card-panel hoverable"]
+makeCard = div_ [class_ "card col s6 hoverable"]
 
 
 finiteForm :: Link -> Html ()
 finiteForm link
   = let url = T.pack . show . linkURI $ link in
-    makeCard $ do
+    div_ $ do
     span_ [class_ "card-title"] "Finite Support"
     form_ [method_ "POST", action_ url] $ do
       input_ [type_ "number", name_ "samples", placeholder_ "number of draws", required_ ""]
@@ -112,7 +113,7 @@ finiteForm link
 realizationForm :: Link -> Html ()
 realizationForm link
   = let url = T.pack . show . linkURI $ link in
-    makeCard $ do
+    div_ $ do
     span_ [class_ "card-title"] "Raw Realizations"
     form_ [method_ "POST", action_ url] $ do
       input_ [type_ "number", name_ "samples", placeholder_ "number of draws", required_ ""]
@@ -122,25 +123,36 @@ realizationForm link
 
 forms :: Link -> Link -> Html ()
 forms finiteLink realizationLink
-  = finite `mappend` realization
-  where finite = finiteForm finiteLink
-        realization = realizationForm realizationLink
+  = makeCard $ do
+      div_ [class_ "card-content"] $
+        p_ "Download CSV files of ambiguous values. Either with finite support, \
+           \or the raw real number realizations from the generator."
+      div_ [class_ "card-tabs"] $
+        ul_ [class_ "tabs tabs-fixed-width"] $ do
+          li_ [class_ "tab"] $ a_ [href_"#realization-form"] "Raw Realizations"
+          li_ [class_ "tab"] $ a_ [href_"#finite-form"] "Finite Support"
+      div_ [class_ "card-content"] $ do
+        finite
+        realization
+  where finite = div_ [id_ "finite-form"] $ finiteForm finiteLink
+        realization = div_ [id_ "realization-form"] $ realizationForm realizationLink
 
 
 blurb :: Html ()
 blurb
-  = div_ [class_ "card-panel hoverable"] $ do
-      p_ $ do {"This website generates ambiguous random values in a CSV \
-               \format. Don't know what ambiguous random values are? You \
-               \can read about them in the paper ";
-               a_ [href_ "https://doi.org/10.1287/mnsc.1100.1307"] "here";
-               ", which we encourage you to cite!"}
-      p_ "Here's some other links which you might find useful:"
-      ol_ $ do
-        li_ (a_ [href_ "https://doi.org/10.1287/mnsc.1100.1307"] "Paper")
-        li_ (a_ [href_ "https://github.com/HaskellAmbiguity/AmbiguityGenerator"] "Source Code")
-        li_ (a_ [href_ "docs"] "Auto-Generated API Docs")
-      exampleCollapsible
+  = makeCard $ do
+      div_ [class_ "card-content"] $ do
+        "This website generates ambiguous random values in a CSV \
+        \format. Don't know what ambiguous random values are? You \
+        \can read about them in the paper "
+        a_ [href_ "https://doi.org/10.1287/mnsc.1100.1307"] "here"
+        ", which we encourage you to cite!"
+        p_ "Here's some other links which you might find useful:"
+        ol_ $ do
+          li_ (a_ [href_ "https://doi.org/10.1287/mnsc.1100.1307"] "Paper")
+          li_ (a_ [href_ "https://github.com/HaskellAmbiguity/AmbiguityGenerator"] "Source Code")
+          li_ (a_ [href_ "docs"] "Auto-Generated API Docs")
+        exampleCollapsible
 
 
 homePage :: Link -> Link -> Html ()
