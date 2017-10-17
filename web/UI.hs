@@ -82,7 +82,7 @@ examples
                                  \URLExecute[\"http://" <> baseUrl <> "/finite\"\
                                  \, {\"format\" -> \"json\", \"samples\" -> 1000, \
                                  \\"lower\" -> 0, \"upper\" -> 10, \
-                                 \\"shuffled\" -> false}, \"Method\" -> \"POST\"]\
+                                 \\"shuffled\" -> \"false\"}, \"Method\" -> \"POST\"]\
                                  \, \"}\"]]")
     ]
 
