@@ -22,8 +22,8 @@ cauchyDraw offset scale y = scale * tan (pi * (y - 1/2)) + offset
 data AmbiGenState s =
   AmbiGenState { genOffset :: AmbiGenReal  -- ^ Offset for the cauchy distribution ("location").
                , genScale  :: AmbiGenReal  -- ^ Scale for the cauchy distribution.
-               , genPhi    :: AmbiGenReal  -- ^ Small scaling factor for adjusting the scale.
-               , genPsi    :: AmbiGenReal  -- ^ Small scaling factor for adjusting the scale.
+               , genPhi    :: AmbiGenReal  -- ^ Small multiplicative scaling factor for adjusting the scale.
+               , genPsi    :: AmbiGenReal  -- ^ Small additive scaling factor for adjusting the scale.
                , genSeed1  :: AmbiGenReal  -- ^ Last draw.
                , genSeed2  :: AmbiGenReal  -- ^ Second last draw.
                , genSeed3  :: AmbiGenReal  -- ^ Third last draw.
