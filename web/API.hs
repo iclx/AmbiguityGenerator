@@ -44,8 +44,8 @@ instance ToJSON FiniteData where
 instance FromJSON FiniteData where
   parseJSON (Object v) = FiniteData
     <$> v .: "samples"
-    <*> v .: "lower"
-    <*> v .: "upper"
+    <*> (fromMaybe 0 <$> (v .:? "lower"))
+    <*> (fromMaybe 1 <$> (v .:? "upper"))
     <*> (fromMaybe True <$> (v .:? "shuffled"))
     <*> (fromMaybe 0 <$> (v .:? "offLow"))
     <*> (fromMaybe 0 <$> (v .:? "offHigh"))
@@ -54,8 +54,8 @@ instance FromJSON FiniteData where
 instance FromForm FiniteData where
   fromForm f = FiniteData
     <$> parseUnique "samples" f
-    <*> parseUnique "lower" f
-    <*> parseUnique "upper" f
+    <*> (fromMaybe 0 <$> (parseMaybe "lower" f))
+    <*> (fromMaybe 1 <$> (parseMaybe "upper" f))
     <*> (checkShuffled <$> (parseAll "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
@@ -138,6 +138,15 @@ finiteAPI :: Proxy FiniteAPI
 finiteAPI = Proxy
 
 
+type BitsAPI = "bits"
+               :> ReqBody '[FormUrlEncoded, JSON] FiniteData
+               :> Post '[AmbigCSV, JSON] (Headers '[Header "Content-Disposition" String] [Integer])
+
+
+bitsAPI :: Proxy BitsAPI
+bitsAPI = Proxy
+
+
 type RealizationAPI = "realizations"
                       :> ReqBody '[FormUrlEncoded, JSON] RealizationData
                       :> Post '[AmbigCSV, JSON] (Headers '[Header "Content-Disposition" String] [Double])
@@ -147,7 +156,7 @@ realizationAPI :: Proxy RealizationAPI
 realizationAPI = Proxy
 
 
-type AmbiguityAPI = FiniteAPI :<|> RealizationAPI
+type AmbiguityAPI = FiniteAPI :<|> RealizationAPI :<|> BitsAPI
 
 
 ambiguityApi :: Proxy AmbiguityAPI

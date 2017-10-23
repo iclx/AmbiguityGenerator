@@ -21,10 +21,32 @@ main
 
       let imageSize = (fromIntegral (800 * 2), fromIntegral (300 * runs))
 
-      ambiguityPlots <- plotShuffleAmbiguity runs samples range
+      ambiguityPlots <- plotAmbiguity runs samples range
       renderableToFile (fo_size .~ imageSize $ fo_format .~ SVG $ def) filepath ambiguityPlots
 
       return ()
+
+
+plotContinuous :: Int -> Int -> IO (Renderable (LayoutPick Double Double Double))
+plotContinuous runs samples
+  = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
+  where
+    makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
+    makePlot = do source <- newStdGen
+                  let gen = mkContinuousState source (1 / fromIntegral samples) 0.0001 0 0
+                  let values = take samples $ generateContinuous gen
+                  return $ plotValues (0, 1) values
+
+
+plotBits :: Int -> Int -> IO (Renderable (LayoutPick Double Double Double))
+plotBits runs samples
+  = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
+  where
+    makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
+    makePlot = do source <- newStdGen
+                  let gen = mkContinuousState source (1 / fromIntegral samples) 0.0001 0 0
+                  let values = fromIntegral <$> (take samples $ generateBits gen)
+                  return $ plotValues (0, 1) values
 
 
 plotTypeclassAmbiguity :: Int -> Int -> Integer -> IO (Renderable (LayoutPick Double Double Double))
@@ -71,6 +93,14 @@ combinedPlot range values
 
       histRealizations = layoutToGrid $ plotHistogram Nothing values
 
+      line = layoutToGrid $ plotRealizations (map realToFrac values)
+
+
+plotValues :: (Double, Double) -> [Double] -> Grid (Renderable (LayoutPick Double Double Double))
+plotValues range values
+  = line `beside` histRealizations
+    where
+      histRealizations = layoutToGrid $ plotHistogram (Just range) values
       line = layoutToGrid $ plotRealizations (map realToFrac values)
 
 

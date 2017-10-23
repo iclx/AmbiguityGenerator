@@ -27,7 +27,7 @@ import Docs
 
 
 ambiguityServer :: Server SiteAPI
-ambiguityServer = (finite :<|> realizations) :<|> serveDocs :<|> servePage 
+ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> servePage 
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         finite (FiniteData samples low high shuffled offLow offHigh)
           = do gen <- liftIO newStdGen
@@ -41,6 +41,23 @@ ambiguityServer = (finite :<|> realizations) :<|> serveDocs :<|> servePage
                let header = concat ["filename=\"", filename, "\""]
 
                return $ addHeader header values
+
+
+        bits :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
+        bits (FiniteData samples low high shuffled offLow offHigh)
+          = do gen <- liftIO newStdGen
+               shuffleGen <- liftIO newStdGen
+
+               let cont = mkContinuousState gen (1 / fromIntegral samples) 0.0001 offLow offHigh
+               let values = if shuffled
+                            then map fromIntegral . shuffleAndTake samples shuffleGen $ generateBits cont
+                            else map fromIntegral . take samples $ generateBits cont
+
+               let filename = concat ["bits-", show samples, "-", show low, "-", show high, ".csv"]
+               let header = concat ["filename=\"", filename, "\""]
+
+               return $ addHeader header values
+
 
         realizations :: RealizationData -> Handler (Headers '[Header "Content-Disposition" String] [Double])
         realizations (RealizationData samples shuffled offLow offHigh)

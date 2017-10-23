@@ -42,9 +42,8 @@ instance Show (AmbiGenState s) where
 --   This will also run the first couple of steps to get the seeds.
 mkAmbiGen :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> AmbiGenState s
 mkAmbiGen source phi psi startOffLow startOffHigh
-  = last states
+  = ambiInit
     where
-      (_, states) = unzip . take 1000 $ generateState ambiInit
       ambiInit = AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 5 source5
 
       seed4 = cauchyDraw y scale y1
@@ -62,6 +61,54 @@ mkAmbiGen source phi psi startOffLow startOffHigh
       (y4, source5) = randomR (0, 1) source4
 
 
+data ContinuousState s =
+  ContinuousState { contAmbiGen :: AmbiGenState s
+                  , contPrevRealizations :: [AmbiGenReal]
+                  , contRandomGen :: s
+                  }
+
+
+mkContinuousState :: RandomGen s => s -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> ContinuousState s
+mkContinuousState source phi psi startOffLow startOffHigh
+  = ContinuousState (last states) prevDraws randGen
+    where
+      (ambiGen, randGen) = split source
+      initGen = mkAmbiGen ambiGen phi psi startOffLow startOffHigh
+      (prevDraws, states) = unzip . take 100 $ generateState initGen
+
+
+nextContinuous :: RandomGen s => ContinuousState s -> (Double, ContinuousState s)
+nextContinuous (ContinuousState gen prev randGen)
+  = (value, ContinuousState newGen newPrev randGen)
+    where
+      maxReal = maximum prev
+      minReal = minimum prev
+
+      (draw, newGen) = nextAmbi gen
+
+      newPrev = take 100 $ (draw : prev)
+
+      value = if maxReal == minReal
+              then maxReal - fromInteger (floor maxReal)
+              else if draw < maxReal && draw > minReal
+                   then (draw - minReal) / (maxReal - minReal)
+                   else ((toContinuous (minReal, maxReal) draw) - minReal) / (maxReal - minReal)
+
+
+nextBit :: RandomGen s => ContinuousState s -> (Int, ContinuousState s)
+nextBit (ContinuousState gen prev randGen)
+  = (value, ContinuousState newGen newPrev newRandGen)
+    where
+      (index, newRandGen) = randomR (0, length prev - 1) randGen
+      pivot = prev !! index
+
+      (draw, newGen) = nextAmbi gen
+
+      newPrev = take 100 $ (draw : prev)
+
+      value = if draw > pivot then 1 else 0
+
+
 -- | Generate an ambiguous AmbiGenReal, and the next state of the ambiguity generator.
 nextAmbi :: RandomGen s => AmbiGenState s -> (AmbiGenReal, AmbiGenState s)
 nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source)
@@ -72,7 +119,7 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
           threshold = max (fromIntegral numDraws ** 4) (10 ** 5)
 
           rescale = if abs seed1 > threshold
-                    then if (floor seed3) `mod` 2 == 0 then True else False
+                    then False -- if (floor seed3) `mod` 2 == 0 then True else False
                     else False
 
           offset' = if rescale
@@ -81,7 +128,7 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
 
           scale' = if rescale
                    then 1
-                   else abs seed2 / (fromIntegral numDraws) + psi
+                   else phi * seed1 + psi -- abs seed2 / (fromIntegral numDraws) + psi
 
           draw' = if rescale then sin (1 / (abs draw + 1)) else draw
           nextGen = AmbiGenState offset' scale' phi psi draw' seed1 seed2 seed3 (numDraws+1) source'
@@ -91,7 +138,7 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws sou
 generateShuffle :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
 generateShuffle gen n = randomShuffle n gen' $ realizations
   where
-    gen' = last states
+    gen' = genSource $ last states
     (realizations, states) = unzip . takeForShuffle $ generateState gen
 
     -- Want to take at least 2 * n for shuffling.
@@ -114,19 +161,22 @@ generateShuffle gen n = randomShuffle n gen' $ realizations
 generateShuffleR :: (Integral a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
 generateShuffleR gen n range = map (toRange range) (generateShuffle gen n)
 
+
 -- | Generate shuffled continuous values.
 generateShuffleContinuousR :: (RealFrac a, RandomGen s) => AmbiGenState s -> Int -> (a, a) -> [a]
 generateShuffleContinuousR gen n range = map (toContinuous range) (generateShuffle gen n)
 
 
-randomShuffle :: RandomGen s => Int -> AmbiGenState s -> [a] -> [a]
-randomShuffle n (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws source) l =
+randomShuffle :: RandomGen s => Int -> s -> [a] -> [a]
+randomShuffle n gen l =
   map (l !!) selectSequence
   where
     selectSequence :: [Int]
     selectSequence = take n $ randomRs (0, length l - 1) gen
 
-    (_, gen) = split source
+
+shuffleAndTake :: RandomGen s => Int -> s -> [a] -> [a]
+shuffleAndTake n gen l = randomShuffle n gen $ take (4 * n) l
 
 
 generate :: RandomGen s => AmbiGenState s -> Int -> [AmbiGenReal]
@@ -154,6 +204,20 @@ generateStateR ambi range = map tupleToRange $ generateState ambi
 generateState :: RandomGen s => AmbiGenState s -> [(AmbiGenReal, AmbiGenState s)]
 generateState ambi = (r, ambi') : generateState ambi'
   where (r, ambi') = nextAmbi ambi
+
+
+generateContinuous :: RandomGen s => ContinuousState s -> [Double]
+generateContinuous gen = v : generateContinuous gen'
+  where (v, gen') = nextContinuous gen
+
+
+generateBits :: RandomGen s => ContinuousState s -> [Int]
+generateBits = map fst . generateBitsState
+
+
+generateBitsState :: RandomGen s => ContinuousState s -> [(Int, ContinuousState s)]
+generateBitsState gen = (v, gen') : generateBitsState gen'
+  where (v, gen') = nextBit gen
 
 
 toRange :: (Integral a, Num b, RealFrac b) => (a, a) -> b -> a
