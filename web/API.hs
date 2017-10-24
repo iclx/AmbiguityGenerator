@@ -25,19 +25,20 @@ checkShuffled [] = True
 checkShuffled vs = any id vs
 
 
--- | Samples, lower bound, upper bound, shuffle, offLow, offHigh.
-data FiniteData = FiniteData Int Integer Integer Bool AmbiGenReal AmbiGenReal
+-- | Samples, lower bound, upper bound, shuffle, offLow, offHigh, draws to skip.
+data FiniteData = FiniteData Int Integer Integer Bool AmbiGenReal AmbiGenReal Int
   deriving (Show, Eq)
 
 
 instance ToJSON FiniteData where
-  toJSON (FiniteData samples lower upper shuffled offLow offHigh)
+  toJSON (FiniteData samples lower upper shuffled offLow offHigh skip)
     = object [ "samples" .= samples
              , "lower" .= lower
              , "upper" .= upper
              , "shuffled" .= shuffled
              , "offLow" .= offLow
              , "offHigh" .= offHigh
+             , "skip" .= skip
              ]
 
 
@@ -49,6 +50,7 @@ instance FromJSON FiniteData where
     <*> (fromMaybe True <$> (v .:? "shuffled"))
     <*> (fromMaybe 0 <$> (v .:? "offLow"))
     <*> (fromMaybe 0 <$> (v .:? "offHigh"))
+    <*> (fromMaybe 0 <$> (v .:? "skip"))
 
 
 instance FromForm FiniteData where
@@ -59,29 +61,32 @@ instance FromForm FiniteData where
     <*> (checkShuffled <$> (parseAll "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
+    <*> (fromMaybe 0 <$> (parseMaybe "skip" f))
 
 
 instance ToForm FiniteData where
-  toForm (FiniteData samples lower upper shuffled offLow offHigh) =
+  toForm (FiniteData samples lower upper shuffled offLow offHigh skip) =
     [ ("samples", toQueryParam samples)
     , ("lower", toQueryParam lower)
     , ("upper", toQueryParam upper)
     , ("shuffled", toQueryParam shuffled)
     , ("offLow", toQueryParam offLow)
     , ("offHigh", toQueryParam offHigh)
+    , ("skip", toQueryParam skip)
     ]
 
 
-data RealizationData = RealizationData Int Bool AmbiGenReal AmbiGenReal
+data RealizationData = RealizationData Int Bool AmbiGenReal AmbiGenReal Int
   deriving (Show, Eq)
 
 
 instance ToJSON RealizationData where
-  toJSON (RealizationData samples shuffled offLow offHigh)
+  toJSON (RealizationData samples shuffled offLow offHigh skip)
     = object [ "samples" .= samples
              , "shuffled" .= shuffled
              , "offLow" .= offLow
              , "offHigh" .= offHigh
+             , "skip" .= skip
              ]
 
 
@@ -91,6 +96,7 @@ instance FromJSON RealizationData where
     <*> (fromMaybe False <$> (v .:? "shuffled"))
     <*> (fromMaybe 0 <$> (v .:? "offLow"))
     <*> (fromMaybe 0 <$> (v .:? "offHigh"))
+    <*> (fromMaybe 0 <$> (v .:? "skip"))
 
 
 instance FromForm RealizationData where
@@ -99,14 +105,16 @@ instance FromForm RealizationData where
     <*> (checkShuffled <$> (parseAll "shuffled" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offLow" f))
     <*> (fromMaybe 0 <$> (parseMaybe "offHigh" f))
+    <*> (fromMaybe 0 <$> (parseMaybe "skip" f))
 
 
 instance ToForm RealizationData where
-  toForm (RealizationData samples shuffled offLow offHigh) =
+  toForm (RealizationData samples shuffled offLow offHigh skip) =
     [ ("samples", toQueryParam samples)
     , ("shuffled", toQueryParam shuffled)
     , ("offLow", toQueryParam offLow)
     , ("offHigh", toQueryParam offHigh)
+    , ("skip", toQueryParam skip)
     ]
 
 

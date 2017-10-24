@@ -29,10 +29,10 @@ import Docs
 ambiguityServer :: Server SiteAPI
 ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> servePage 
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
-        finite (FiniteData samples low high shuffled offLow offHigh)
+        finite (FiniteData samples low high shuffled offLow offHigh skip)
           = do gen <- liftIO newStdGen
 
-               let ambi = mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
+               let ambi = ambiSkip skip $ mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
                let values = if shuffled
                             then generateShuffleR ambi samples (low, high)
                             else generateR ambi samples (low, high)
@@ -44,26 +44,26 @@ ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> serve
 
 
         bits :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
-        bits (FiniteData samples low high shuffled offLow offHigh)
+        bits (FiniteData samples low high shuffled offLow offHigh skip)
           = do gen <- liftIO newStdGen
                shuffleGen <- liftIO newStdGen
 
                let cont = mkContinuousState gen (1 / fromIntegral samples) 0.0001 offLow offHigh
                let values = if shuffled
-                            then map fromIntegral . shuffleAndTake samples shuffleGen $ generateBits cont
-                            else map fromIntegral . take samples $ generateBits cont
+                            then map fromIntegral . shuffleAndTake (samples + skip) shuffleGen $ generateBits cont
+                            else map fromIntegral . take (samples + skip) $ generateBits cont
 
                let filename = concat ["bits-", show samples, "-", show low, "-", show high, ".csv"]
                let header = concat ["filename=\"", filename, "\""]
 
-               return $ addHeader header values
+               return $ addHeader header (drop skip values)
 
 
         realizations :: RealizationData -> Handler (Headers '[Header "Content-Disposition" String] [Double])
-        realizations (RealizationData samples shuffled offLow offHigh)
+        realizations (RealizationData samples shuffled offLow offHigh skip)
           = do gen <- liftIO newStdGen
 
-               let ambi = mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
+               let ambi = ambiSkip skip $ mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
                let values = if shuffled
                             then generateShuffle ambi samples
                             else generate ambi samples

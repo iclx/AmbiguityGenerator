@@ -29,10 +29,10 @@ intro =
 
 
 instance ToSample FiniteData where
-  toSamples _ = [("To get 1000 values with finite support from 0 to 10, with shuffling turned on, starting with a fixed offset of 0 for the sequence.", FiniteData 1000 0 10 True 0 0)]
+  toSamples _ = [("To get 1000 values with finite support from 0 to 10, with shuffling turned on, starting with a fixed offset of 0 for the sequence.", FiniteData 1000 0 10 True 0 0 0)]
 
 instance ToSample RealizationData where
-  toSamples _ = [("To get 1000 values of raw realizations, with shuffling turned on, starting with a fixed offset of 0 for the sequence.", RealizationData 1000 True 0 0)]
+  toSamples _ = [("To get 1000 values of raw realizations, with shuffling turned on, starting with a fixed offset of 0 for the sequence.", RealizationData 1000 True 0 0 0)]
 
 
 instance ToSample (HtmlT Identity ()) where

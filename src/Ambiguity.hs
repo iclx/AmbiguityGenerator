@@ -206,6 +206,10 @@ generateState ambi = (r, ambi') : generateState ambi'
   where (r, ambi') = nextAmbi ambi
 
 
+ambiSkip :: RandomGen s => Int -> AmbiGenState s -> AmbiGenState s
+ambiSkip skipAmount ambi = snd $ generateState ambi !! skipAmount
+
+
 generateContinuous :: RandomGen s => ContinuousState s -> [Double]
 generateContinuous gen = v : generateContinuous gen'
   where (v, gen') = nextContinuous gen
