@@ -76,7 +76,7 @@ data ContinuousState =
 mkContinuousState :: MonadRandom m => AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> AmbiGenReal -> m ContinuousState
 mkContinuousState phi psi startOffLow startOffHigh
   = do initGen <- mkAmbiGen phi psi startOffLow startOffHigh
-       (prevDraws, states) <- fmap unzip <$> sequence $ take 100 $ generateState initGen
+       (prevDraws, states) <- unzip <$> generateWithStates initGen 100
 
        return $ ContinuousState (last states) prevDraws
 
@@ -125,114 +125,67 @@ nextAmbi (AmbiGenState offset scale phi psi seed1 seed2 seed3 seed4 numDraws)
        return (draw, nextGen)
 
 
--- | Generate a shuffled list of ambiguous realizations.
-generateShuffle :: forall m. MonadRandom m => AmbiGenState -> Int -> m [AmbiGenReal]
-generateShuffle gen n
-  = do (realizations, states) <- fmap unzip <$> takeForShuffle $ generateState gen
-       randomShuffle n realizations
-  where
-    -- Want to take at least 2 * n for shuffling.
-    -- Take 2 * n, and then test if we need more.
-    takeForShuffle :: (Num a, RealFrac a) => [m (a, AmbiGenState)] -> m [(a, AmbiGenState)]
-    takeForShuffle = takeForShuffleHelper (2 * n) []
-
-    takeForShuffleHelper :: (Num a, RealFrac a) => Int -> [(a, AmbiGenState)] -> [m (a, AmbiGenState)] -> m [(a, AmbiGenState)]
-    takeForShuffleHelper k rest [] = return rest
-
-    takeForShuffleHelper 0 rest (gen : gens)
-      = do x <- gen
-           if toRange (0, 1) (fst x) == 0
-             then return $ x : rest
-             else takeForShuffleHelper 0 (x : rest) gens
-
-    takeForShuffleHelper k rest (gen : gens)
-      = do x <- gen
-           takeForShuffleHelper (k-1) (x : rest) gens
-
-
--- | Generate shuffled ambiguous values with finite support.
-generateShuffleR :: (Integral a, MonadRandom m) => AmbiGenState -> Int -> (a, a) -> m [a]
-generateShuffleR gen n range = map (toRange range) <$> generateShuffle gen n
-
-
--- | Generate shuffled continuous values.
-generateShuffleContinuousR :: (RealFrac a, MonadRandom m) => AmbiGenState -> Int -> (a, a) -> m [a]
-generateShuffleContinuousR gen n range = map (toContinuous range) <$> (generateShuffle gen n)
-
-
-randomShuffle :: forall m a. MonadRandom m => Int -> [a] -> m [a]
-randomShuffle n l
+randomShuffle :: forall m a. MonadRandom m => [a] -> m [a]
+randomShuffle l
   = map (l !!) <$> selectSequence
   where
     selectSequence :: m [Int]
-    selectSequence = take n <$> getRandomRs (0, length l - 1)
+    selectSequence = do rs <- getRandomRs (0, length l - 1)
+                        return $ take (length l) rs
 
 
-shuffleAndTake :: MonadRandom m => Int -> [a] -> m [a]
-shuffleAndTake n l = randomShuffle n $ take (4 * n) l
+generateWithStates :: MonadRandom m => AmbiGenState -> Int -> m [(AmbiGenReal, AmbiGenState)]
+generateWithStates ambi 0 = return []
+generateWithStates ambi n
+  = do s@(v, ambi') <- nextAmbi ambi
+       rest <- generateWithStates ambi' (n-1)
+
+       return $ s : rest
 
 
-shuffleAndTakeSeq :: MonadRandom m => Int -> [m a] -> m [a]
-shuffleAndTakeSeq n l
-  = do ls <- sequence $ take (4 * n) l
-       randomShuffle n ls
+generate :: MonadRandom m => AmbiGenState -> Int -> m [AmbiGenReal]
+generate ambi n = map fst <$> generateWithStates ambi n
 
 
-takeFstM :: Monad m => Int -> [m (a, b)] -> [m a]
-takeFstM n = fmap (fmap fst) . take n
+generateR :: (Integral a, MonadRandom m) => AmbiGenState -> Int -> (a, a) -> m [a]
+generateR ambi n range = map (toRange range) <$> generate ambi n
 
 
-generate :: MonadRandom m => AmbiGenState -> Int -> [m AmbiGenReal]
-generate ambi n = takeFstM n $ generateState ambi
-
-
-generateR :: (Integral a, MonadRandom m) => AmbiGenState -> Int -> (a, a) -> [m a]
-generateR ambi n range = takeFstM n $ generateStateR ambi range
-
-
-generateContinuousR :: (RealFrac a, MonadRandom m) => AmbiGenState -> Int -> (a, a) -> [m a]
-generateContinuousR ambi n range = takeFstM n $ generateStateContinuousR ambi range
-
-
-generateStateContinuousR :: (RealFrac a, MonadRandom m) => AmbiGenState -> (a, a) -> [m (a, AmbiGenState)]
-generateStateContinuousR ambi range = fmap tupleToRange <$> generateState ambi
-  where tupleToRange (v, ambi) = (toContinuous range v, ambi)
-
-
-generateStateR :: (Integral a, MonadRandom m) => AmbiGenState -> (a, a) -> [m (a, AmbiGenState)]
-generateStateR ambi range = fmap tupleToRange <$> generateState ambi
-  where tupleToRange (v, ambi) = (toRange range v, ambi)
-
-
-generateState :: forall m. MonadRandom m => AmbiGenState -> [m (AmbiGenReal, AmbiGenState)]
-generateState ambi = iterate step (nextAmbi ambi)
-  where step :: m (AmbiGenReal, AmbiGenState) -> m (AmbiGenReal, AmbiGenState)
-        step gen = do (r, ambi') <- gen
-                      nextAmbi ambi'
+generateContinuousR :: (RealFrac a, MonadRandom m) => AmbiGenState -> Int -> (a, a) -> m [a]
+generateContinuousR ambi n range = map (toContinuous range) <$> generate ambi n
 
 
 ambiSkip :: MonadRandom m => Int -> AmbiGenState -> m AmbiGenState
 ambiSkip skipAmount ambi
-  = do states <- sequence $ take skipAmount $ generateState ambi
+  = do states <- generateWithStates ambi skipAmount
        return $ snd (states !! skipAmount)
 
 
-generateContinuous :: forall m. MonadRandom m => ContinuousState -> [m AmbiGenReal]
-generateContinuous gen = fmap fst <$> iterate step (nextContinuous gen)
-  where step :: m (AmbiGenReal, ContinuousState) -> m (AmbiGenReal, ContinuousState)
-        step gen = do (r, ambi') <- gen
-                      nextContinuous ambi'
+generateContinuousState :: MonadRandom m => ContinuousState -> Int -> m [(AmbiGenReal, ContinuousState)]
+generateContinuousState gen 0 = return []
+generateContinuousState gen n
+  = do s@(r, gen') <- nextContinuous gen
+       rest <- generateContinuousState gen' (n-1)
+
+       return $ s : rest
 
 
-generateBits :: MonadRandom m => ContinuousState -> [m Int]
-generateBits gen = fmap fst <$> generateBitsState gen
+generateContinuous :: MonadRandom m => ContinuousState -> Int -> m [AmbiGenReal]
+generateContinuous gen n = map fst <$> generateContinuousState gen n
 
 
-generateBitsState :: forall m. MonadRandom m => ContinuousState -> [m (Int, ContinuousState)]
-generateBitsState gen = iterate step (nextBit gen)
-  where step :: m (Int, ContinuousState) -> m (Int, ContinuousState)
-        step gen = do (r, ambi') <- gen
-                      nextBit ambi'
+generateBitsState :: MonadRandom m => ContinuousState -> Int -> m [(Int, ContinuousState)]
+generateBitsState gen 0 = return []
+generateBitsState gen n
+  = do s@(r, gen') <- nextBit gen
+       rest <- generateBitsState gen' (n-1)
+
+       return $ s : rest
+
+
+generateBits :: MonadRandom m => ContinuousState -> Int -> m [Int]
+generateBits gen n = map fst <$> generateBitsState gen n
+
 
 
 toRange :: (Integral a, Num b, RealFrac b) => (a, a) -> b -> a

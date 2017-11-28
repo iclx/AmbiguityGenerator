@@ -21,7 +21,7 @@ drawBits :: String -> Int -> Int -> IO ()
 drawBits fileBase samples run
   = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 0 0
 
-       values <- sequence $ generateR ambi samples (0,1)
+       values <- generateR ambi samples (0,1)
        let output = intercalate ", " (map show values)
 
        writeFile (fileBase ++ show samples ++ "-bits-" ++ show run ++ ".csv") output
@@ -31,7 +31,7 @@ drawDigits :: String -> Int -> Int -> IO ()
 drawDigits fileBase samples run
   = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 0 0
 
-       values <- sequence $ generateR ambi samples (0,9)
+       values <- generateR ambi samples (0,9)
        let output = intercalate ", " (map show values)
 
        writeFile (fileBase ++ show samples ++ "-digits-" ++ show run ++ ".csv") output
@@ -41,7 +41,7 @@ drawAmbiguous :: String -> Int -> Int -> IO ()
 drawAmbiguous fileBase samples run
   = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 0 0
 
-       values <- sequence $ generate ambi samples
+       values <- generate ambi samples
        let output = intercalate ", " (map show values)
 
        writeFile (fileBase ++ show samples ++ "-ambiguous-" ++ show run ++ ".csv") output

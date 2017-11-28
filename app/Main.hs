@@ -33,7 +33,7 @@ plotContinuous runs samples
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do gen <- mkContinuousState (1 / fromIntegral samples) 0.0001 0 0
-                  values <- sequence $ take samples $ generateContinuous gen
+                  values <- generateContinuous gen samples
                   return $ plotValues (0, 1) values
 
 
@@ -43,7 +43,7 @@ plotBits runs samples
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do gen <- mkContinuousState (1 / fromIntegral samples) 0.0001 0 0
-                  values <- fmap fromIntegral <$> (sequence $ take samples $ generateBits gen)
+                  values <- fmap fromIntegral <$> generateBits gen samples
                   return $ plotValues (0, 1) values
 
 
@@ -53,8 +53,10 @@ plotShuffleAmbiguity runs samples range
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do ambi <- mkAmbiGen (1 / fromIntegral samples) (0.0001) 0 0
-                  values <- generateShuffle ambi samples
-                  return $ combinedPlot range values
+                  values <- generate ambi (4 * samples)
+                  shuffled <- randomShuffle values
+
+                  return $ combinedPlot range (take samples shuffled)
 
 
 plotAmbiguity :: Int -> Int -> Integer -> IO (Renderable (LayoutPick Double Double Double))
@@ -63,7 +65,7 @@ plotAmbiguity runs samples range
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
     makePlot = do ambi <- mkAmbiGen (1 / fromIntegral samples) (0.0001) 0 0
-                  values <- sequence $ generate ambi samples
+                  values <- generate ambi samples
                   return $ combinedPlot range values
 
 
