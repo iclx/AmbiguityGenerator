@@ -32,9 +32,8 @@ plotContinuous runs samples
   = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
-    makePlot = do source <- newStdGen
-                  let gen = mkContinuousState source (1 / fromIntegral samples) 0.0001 0 0
-                  let values = take samples $ generateContinuous gen
+    makePlot = do gen <- mkContinuousState (1 / fromIntegral samples) 0.0001 0 0
+                  values <- sequence $ take samples $ generateContinuous gen
                   return $ plotValues (0, 1) values
 
 
@@ -43,22 +42,9 @@ plotBits runs samples
   = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
-    makePlot = do source <- newStdGen
-                  let gen = mkContinuousState source (1 / fromIntegral samples) 0.0001 0 0
-                  let values = fromIntegral <$> (take samples $ generateBits gen)
+    makePlot = do gen <- mkContinuousState (1 / fromIntegral samples) 0.0001 0 0
+                  values <- fmap fromIntegral <$> (sequence $ take samples $ generateBits gen)
                   return $ plotValues (0, 1) values
-
-
-plotTypeclassAmbiguity :: Int -> Int -> Integer -> IO (Renderable (LayoutPick Double Double Double))
-plotTypeclassAmbiguity runs samples range
-  = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
-  where
-    makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
-    makePlot = do source <- newStdGen
-                  let ambi = mkAmbiGen source 0 0 0 0
-                  let haskellValues = take samples $ randomRs (1 :: Int, 10) ambi
-
-                  return $ layoutToGrid (plotHistogram Nothing (map fromIntegral haskellValues))
 
 
 plotShuffleAmbiguity :: Int -> Int -> Integer -> IO (Renderable (LayoutPick Double Double Double))
@@ -66,8 +52,8 @@ plotShuffleAmbiguity runs samples range
   = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
-    makePlot = do source <- newStdGen
-                  let values = generateShuffle (mkAmbiGen source (1 / fromIntegral samples) (0.0001) 0 0) samples
+    makePlot = do ambi <- mkAmbiGen (1 / fromIntegral samples) (0.0001) 0 0
+                  values <- generateShuffle ambi samples
                   return $ combinedPlot range values
 
 
@@ -76,8 +62,8 @@ plotAmbiguity runs samples range
   = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
-    makePlot = do source <- newStdGen
-                  let values = generate (mkAmbiGen source (1 / fromIntegral samples) (0.0001) 0 0) samples
+    makePlot = do ambi <- mkAmbiGen (1 / fromIntegral samples) (0.0001) 0 0
+                  values <- sequence $ generate ambi samples
                   return $ combinedPlot range values
 
 

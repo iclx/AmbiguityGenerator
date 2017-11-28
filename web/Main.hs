@@ -11,6 +11,7 @@ import System.Random
 import System.Environment
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Random.Class
 import Network.Wai
 import Network.Wai.Logger
 import Network.Wai.Handler.Warp
@@ -26,16 +27,21 @@ import API
 import Docs
 
 
+instance MonadRandom Handler where
+  getRandomR r = liftIO $ getRandomR r
+  getRandom = liftIO getRandom
+  getRandomRs r = liftIO $ getRandomRs r
+  getRandoms = liftIO getRandoms
+
+
 ambiguityServer :: Server SiteAPI
 ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> servePage 
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         finite (FiniteData samples low high shuffled offLow offHigh skip)
-          = do gen <- liftIO newStdGen
-
-               let ambi = ambiSkip skip $ mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
-               let values = if shuffled
-                            then generateShuffleR ambi samples (low, high)
-                            else generateR ambi samples (low, high)
+          = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 offLow offHigh >>= ambiSkip skip
+               values <- if shuffled
+                         then generateShuffleR ambi samples (low, high)
+                         else sequence $ generateR ambi samples (low, high)
 
                let filename = concat ["finite-", show samples, "-", show low, "-", show high, ".csv"]
                let header = concat ["filename=\"", filename, "\""]
@@ -45,13 +51,12 @@ ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> serve
 
         bits :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         bits (FiniteData samples low high shuffled offLow offHigh skip)
-          = do gen <- liftIO newStdGen
-               shuffleGen <- liftIO newStdGen
-
-               let cont = mkContinuousState gen (1 / fromIntegral samples) 0.0001 offLow offHigh
-               let values = if shuffled
-                            then map fromIntegral . shuffleAndTake (samples + skip) shuffleGen $ generateBits cont
-                            else map fromIntegral . take (samples + skip) $ generateBits cont
+          = do cont <- mkContinuousState (1 / fromIntegral samples) 0.0001 offLow offHigh
+               values <- if shuffled
+                         then do bits <- shuffleAndTakeSeq (samples + skip) $ generateBits cont
+                                 return $ map fromIntegral $ bits
+                         else do bits <- sequence $ take (samples + skip) $ generateBits cont
+                                 return $ map fromIntegral $ bits
 
                let filename = concat ["bits-", show samples, "-", show low, "-", show high, ".csv"]
                let header = concat ["filename=\"", filename, "\""]
@@ -61,12 +66,10 @@ ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> serve
 
         realizations :: RealizationData -> Handler (Headers '[Header "Content-Disposition" String] [Double])
         realizations (RealizationData samples shuffled offLow offHigh skip)
-          = do gen <- liftIO newStdGen
-
-               let ambi = ambiSkip skip $ mkAmbiGen gen (1 / fromIntegral samples) 0.0001 offLow offHigh
-               let values = if shuffled
-                            then generateShuffle ambi samples
-                            else generate ambi samples
+          = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 offLow offHigh >>= ambiSkip skip
+               values <- if shuffled
+                         then generateShuffle ambi samples
+                         else sequence $ generate ambi samples
 
                let filename = concat ["realizations-", show samples, ".csv"]
                let header = concat ["filename=\"", filename, "\""]
