@@ -7,6 +7,7 @@
 module Main where
 
 import Ambiguity
+import MonadSystemEntropy
 import System.Random
 import System.Environment
 import Control.Monad
@@ -38,8 +39,9 @@ ambiguityServer :: Server SiteAPI
 ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> servePage 
   where finite :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         finite (FiniteData samples low high shuffled offLow offHigh skip)
-          = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 offLow offHigh >>= ambiSkip skip
-               values <- if shuffled
+          = do ambi <- liftIO $ runEntropy (mkAmbiGen (1 / fromIntegral samples) 0.0001 offLow offHigh >>= ambiSkip skip)
+               values <- liftIO $ runEntropy $
+                         if shuffled
                          then do rs <- generateR ambi (4 * samples) (low, high)
                                  shuffled <- randomShuffle rs
                                  return $ take samples shuffled
@@ -53,8 +55,9 @@ ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> serve
 
         bits :: FiniteData -> Handler (Headers '[Header "Content-Disposition" String] [Integer])
         bits (FiniteData samples low high shuffled offLow offHigh skip)
-          = do cont <- mkContinuousState (1 / fromIntegral samples) 0.0001 offLow offHigh
-               values <- if shuffled
+          = do cont <- liftIO $ runEntropy $ mkContinuousState (1 / fromIntegral samples) 0.0001 offLow offHigh
+               values <- liftIO $ runEntropy $
+                         if shuffled
                          then do bits <- generateBits cont (4 * samples + skip)
                                  shuffled <- randomShuffle (drop skip bits)
                                  return $ map fromIntegral $ shuffled
@@ -69,8 +72,9 @@ ambiguityServer = (finite :<|> realizations :<|> bits) :<|> serveDocs :<|> serve
 
         realizations :: RealizationData -> Handler (Headers '[Header "Content-Disposition" String] [Double])
         realizations (RealizationData samples shuffled offLow offHigh skip)
-          = do ambi <- mkAmbiGen (1 / fromIntegral samples) 0.0001 offLow offHigh >>= ambiSkip skip
-               values <- if shuffled
+          = do ambi <- liftIO $ runEntropy $ mkAmbiGen (1 / fromIntegral samples) 0.0001 offLow offHigh >>= ambiSkip skip
+               values <- liftIO $ runEntropy $
+                         if shuffled
                          then generate ambi (4 * samples) >>= randomShuffle >>= return . take samples
                          else generate ambi samples
 

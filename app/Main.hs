@@ -1,6 +1,7 @@
 module Main where
 
 import Ambiguity
+import MonadSystemEntropy
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Easy hiding (beside)
 import Graphics.Rendering.Chart.Backend.Diagrams
@@ -64,7 +65,8 @@ plotAmbiguity runs samples range
   = fmap (gridToRenderable . aboveN) $ replicateM runs makePlot
   where
     makePlot :: IO (Grid (Renderable (LayoutPick Double Double Double)))
-    makePlot = do ambi <- mkAmbiGen (1 / fromIntegral samples) (0.0001) 0 0
+    makePlot = runEntropy $
+               do ambi <- mkAmbiGen (1 / fromIntegral samples) (0.0001) 0 0
                   values <- generate ambi samples
                   return $ combinedPlot range values
 
