@@ -157,7 +157,7 @@ generateContinuousR ambi n range = map (toContinuous range) <$> generate ambi n
 
 ambiSkip :: MonadRandom m => Int -> AmbiGenState -> m AmbiGenState
 ambiSkip skipAmount ambi
-  = do states <- generateWithStates ambi skipAmount
+  = do states <- generateWithStates ambi (skipAmount+1)
        return $ snd (states !! skipAmount)
 
 
