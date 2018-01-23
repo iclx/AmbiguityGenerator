@@ -1,8 +1,10 @@
 # Ambiguity
 
+[![Build Status](https://travis-ci.org/HaskellAmbiguity/AmbiguityGenerator.svg?branch=master)](https://travis-ci.org/HaskellAmbiguity/AmbiguityGenerator)
+
 This is a Haskell library to expose the "ambiguous random value generator". The mathematical and practical properties of this generator are available in our paper which you can find here: https://doi.org/10.1287/mnsc.1100.1307
 
-We would be grateful if you would cite us in work that uses this ambiguity generator. We have provided the BibTeX info here:
+We would be grateful if you would cite us in work that uses this ambiguity generator. We have provided the BibTeX infno here:
 
 ```
 @article{AmbiguityInTheLabMS2011,
