@@ -28,3 +28,21 @@ eprint = {
 ```
 
 this info is also available in the `ambiguity.bib` file, if you prefer.
+
+# Installation
+
+You can install the AmbiguityGenerator using the source code. You will
+need Haskell for the install. We recommend using
+[stack](https://docs.haskellstack.org/en/stable/README/) which will be
+able to fetch the Haskell compiler for you.
+
+After installing stack you should fetch the source code:
+
+    git clone https://github.com/HaskellAmbiguity/AmbiguityGenerator.git
+
+Once you have the source code, enter the directory and build the
+program using stack:
+
+    cd AmbiguityGenerator
+    stack build
+
