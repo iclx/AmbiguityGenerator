@@ -159,6 +159,9 @@ blurb
 homePage :: Link -> Link -> Html ()
 homePage finiteLink realizationLink
   = html_ $ do
+      title_ "Ambiguous Random Value Generator"
+      meta_ [ name_ "Description"
+            , content_ "Generate ambiguous random values / numbers. Ambiguous random values are random values with an undefined / unknowable probability. This is done by sampling a distribution where the law of large numbers does not hold. This can be used for muddling. Tags:random, ambiguous, random generator, random numbers, muddling, ambiguity generator"]
       head_ $ do
         materialize
         link_ [href_ "https://fonts.googleapis.com/icon?family=Material+Icons", rel_ "stylesheet"]
