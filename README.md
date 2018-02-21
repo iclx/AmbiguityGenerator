@@ -33,7 +33,7 @@ this info is also available in the `ambiguity.bib` file, if you prefer.
 
 There is a website where you can try out the ambiguity generator here:
 
-http://ambiguity.typesofnote.com/
+https://ambiguity.typesofnote.com/
 
 # Installation
 
