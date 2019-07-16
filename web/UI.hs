@@ -78,12 +78,22 @@ examples
                             "/finite', data={\"samples\":1000, \"lower\":0, \
                             \\"upper\":10})")
 
-    , makeExample "Mathematica" ("ToExpression[StringJoin[\"{\", \
+    , makeExample "Mathematica <= 11.3" ("ToExpression[StringJoin[\"{\", \
                                  \URLExecute[\"http://" <> baseUrl <> "/finite\"\
                                  \, {\"format\" -> \"json\", \"samples\" -> 1000, \
                                  \\"lower\" -> 0, \"upper\" -> 10, \
                                  \\"shuffled\" -> \"false\"}, \"Method\" -> \"POST\"]\
                                  \, \"}\"]]")
+
+    , makeExample "Mathematica >= 12" ("SmoothHistogram[ \
+                                       \ToExpression[ \
+                                       \StringJoin[\"{\", \
+                                       \URLExecute[ \
+                                       \HTTPRequest[ \
+                                       \\"http://" <> baseUrl <> "/finite\", <| \
+                                       \\"Body\" -> {\"format\" -> \"json\", \"samples\" -> 1000, \"lower\" -> 0, \
+                                       \\"upper\" -> 10, \"shuffled\" -> \"false\"}, Method -> \"POST\"|>]], \
+                                       \\"}\"]], PlotRange -> All]")
     ]
 
 
